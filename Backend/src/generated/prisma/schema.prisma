@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Administrateur
+  Producteur
+  Vendeur
+  Caissier
+}
+
+enum DurationUnit {
+  minutes
+  heures
+  jours
+}
+
+enum TicketState {
+  Payé
+  Impayé
+}
+
+enum DeliveryState {
+  Livré
+  NonLivré
+}
+
+model Personnel {
+  personnelId String   @id
+  name        String
+  lastName    String
+  email       String   @unique
+  password    String
+  role        Role
+  createdAt   DateTime @default(now())
+
+  ingredients Ingredient[]
+  steps       Step[]
+  tickets     Ticket[]
+  payments    Payment[]
+}
+
+model Ingredient {
+  ingredientId Int      @id @default(autoincrement())
+  productorId  String
+  label        String
+  quantity     Decimal
+  threshold    Decimal
+  provider     String
+  createdAt    DateTime @default(now())
+
+  productor Personnel @relation(fields: [productorId], references: [personnelId])
+}
+
+model Step {
+  stepId      Int          @id @default(autoincrement())
+  productorId String
+  label       String
+  duration    Int
+  unit        DurationUnit
+  description String
+  createdAt   DateTime     @default(now())
+
+  productor Personnel     @relation(fields: [productorId], references: [personnelId])
+  vintages  VintageStep[]
+}
+
+model Vintage {
+  vintageId   Int      @id @default(autoincrement())
+  productorId String
+  label       String
+  quality     String
+  createdAt   DateTime @default(now())
+
+  steps    VintageStep[]
+  products Product[]
+}
+
+model VintageStep {
+  vintageStepId Int      @id @default(autoincrement())
+  stepId        Int
+  vintageId     Int
+  createdAt     DateTime @default(now())
+
+  step    Step    @relation(fields: [stepId], references: [stepId])
+  vintage Vintage @relation(fields: [vintageId], references: [vintageId])
+
+  @@unique([vintageId, stepId])
+}
+
+model Product {
+  productId Int      @id @default(autoincrement())
+  vintageId Int
+  formatId  Int
+  label     String
+  price     Decimal
+  createdAt DateTime @default(now())
+
+  vintage Vintage @relation(fields: [vintageId], references: [vintageId])
+  format  Format  @relation(fields: [formatId], references: [formatId])
+
+  ticketLines TicketLine[]
+}
+
+model Format {
+  formatId  Int     @id @default(autoincrement())
+  label     String
+  quanitity Decimal
+  unit      String  @default("cL")
+
+  products Product[]
+}
+
+model TicketLine {
+  ticketLineId Int @id @default(autoincrement())
+  ticketId     Int
+  productId    Int
+  quantity     Int
+
+  product Product @relation(fields: [productId], references: [productId])
+  ticket  Ticket  @relation(fields: [ticketId], references: [ticketId])
+}
+
+model Ticket {
+  ticketId    Int          @id @default(autoincrement())
+  sellerId    String
+  clientId    Int
+  state       TicketState
+  createdAt   DateTime     @default(now())
+  ticketLines TicketLine[]
+
+  seller Personnel @relation(fields: [sellerId], references: [personnelId])
+  client Client    @relation(fields: [clientId], references: [clientId])
+
+  delivery Delivery?
+  payment  Payment?
+}
+
+model Client {
+  clientId  Int      @id @default(autoincrement())
+  name      String
+  lastName  String
+  adress    String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  tickets Ticket[]
+}
+
+model Delivery {
+  deliveryId Int           @id @default(autoincrement())
+  ticketId   Int           @unique
+  adress     String
+  createdAt  DateTime      @default(now())
+  state      DeliveryState
+  fee        Decimal       @default(5000)
+
+  ticket Ticket @relation(fields: [ticketId], references: [ticketId])
+}
+
+model Payment {
+  paymentId Int      @id @default(autoincrement())
+  cashierId String
+  ticketId  Int      @unique
+  amount    Decimal
+  createdAt DateTime @default(now())
+
+  cashier Personnel @relation(fields: [cashierId], references: [personnelId])
+  ticket  Ticket    @relation(fields: [ticketId], references: [ticketId])
+}
