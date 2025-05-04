@@ -114,7 +114,7 @@ model Product {
 model Format {
   formatId Int @id @default(autoincrement())
   label String
-  quanitity Decimal
+  quantity Decimal
   unit String @default("cL")
 
   products Product[]

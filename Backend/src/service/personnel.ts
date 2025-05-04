@@ -1,13 +1,6 @@
 import prisma from "../config/prisma";
-import { Role } from "@prisma/client";
-interface NewUser {
-    cin: string;
-    name: string;
-    lastName: string;
-    email: string;
-    password: string;
-    role: Role;
-}
+import { NewUser } from "../type/user";
+
 export class personnelService {
     static async getAll(){
         return await prisma.personnel.findMany();
