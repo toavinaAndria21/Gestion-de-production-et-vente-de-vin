@@ -20,7 +20,7 @@ export class VintageController {
             const { label, quality, productorId } = req.body;
 
             if (!label || !quality || !productorId) {
-                return res.status(400).json({ message: "Champs requis manquants" });
+                res.status(400).json({ message: "Champs requis manquants" });
             }
     
             const updatedVintage = await VintageService.update(id, req.body);

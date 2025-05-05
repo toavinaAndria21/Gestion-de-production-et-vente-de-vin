@@ -59,6 +59,9 @@ export class VintageService {
                         contains:label,
                         mode: "insensitive"
                     }
+                },
+                include:{
+                    products: true
                 }
             })
             return vintage;
