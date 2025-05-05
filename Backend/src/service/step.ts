@@ -6,7 +6,8 @@ export class StepService {
         try {
             return await prisma.step.findMany({
                 include: {
-                    productor: true
+                    productor: true,
+                    vintages: true
                 }
             });
         }catch (error) {
