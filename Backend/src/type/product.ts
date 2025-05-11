@@ -1,7 +1,7 @@
 import { Decimal } from '@prisma/client/runtime/library';
+import { Vintage, Format, TicketLine } from '@prisma/client';
 
 export interface Product {
-  productId?: number;
   vintageId: number;
   formatId: number;
   label: string;
@@ -9,7 +9,7 @@ export interface Product {
   createdAt?: Date;
   
   // Relations
-//   vintage?: Vintage;
-//   format?: Format;
-//   ticketLines?: TicketLine[];
+  // vintage?: Vintage;
+  // format?: Format;
+  // ticketLines?: TicketLine[];
 }

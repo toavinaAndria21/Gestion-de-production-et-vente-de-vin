@@ -18,15 +18,15 @@ export class ProductService {
 
     static async create(product: Product) {
         try {
-            const existingProduct = await prisma.product.findFirst({
-                where: {
-                    label: product.label,
-                },
-            });
+            // const existingProduct = await prisma.product.findFirst({
+            //     where: {
+            //         label: product.label,
+            //     },
+            // });
 
-            if (existingProduct) {
-                throw new Error("Un produit avec ce nom existe déjà");
-            }
+            // if (existingProduct) {
+            //     throw new Error("Un produit avec ce nom existe déjà");
+            // }
             const newProduct = await prisma.product.create({
                 data: {
                     vintageId: product.vintageId,
@@ -57,7 +57,11 @@ export class ProductService {
                 where: { 
                     productId: id,
                 },
-                data: product,
+                data: {
+                     formatId: product.formatId,
+                     label: product.label,
+                     price: product.price
+                },
             });
             return updatedProduct;
         } catch (error) {
