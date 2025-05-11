@@ -1,0 +1,28 @@
+/* Sur l'élément contenant le scroll */
+.scrollable {
+    overflow-y: auto;
+  }
+  
+  /* Scrollbar entière */
+  .scrollable::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  /* Le fond de la scrollbar */
+  .scrollable::-webkit-scrollbar-track {
+    background: #f2f2f2;
+    border-radius: 8px;
+  }
+  
+  /* Le "pouce" (la partie mobile) */
+  .scrollable::-webkit-scrollbar-thumb {
+    background-color: #7f1d1d; /* bordeaux foncé */
+    border-radius: 8px;
+    border: 2px solid #f2f2f2; /* espace autour */
+  }
+  
+  /* Pour Firefox */
+  .scrollable {
+    scrollbar-width: thin; /* auto | thin | none */
+    scrollbar-color: #7f1d1d #f2f2f2;
+  }
