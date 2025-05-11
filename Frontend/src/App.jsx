@@ -7,7 +7,8 @@ const router = createBrowserRouter([
     path: '/seller',
     element: <SellerLayout/>,
     children: sellerRoute
-  }
+  },
+
 ]);
 
 function App() {
