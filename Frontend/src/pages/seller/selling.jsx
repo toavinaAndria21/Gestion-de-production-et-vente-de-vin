@@ -1,59 +1,86 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search, Minus, Plus } from "lucide-react";
 import '../../css/scrollBar.css';
 import WineCardList from "../../components/wineCard";
+import SearchInput from "../../components/searchInput";
 
 export default function Selling() {
-    const[ActiveCategory, setActiveCategoey] = useState('Tous');
+    const[ActiveCategory, setActiveCategory] = useState('Tous');
     const categories = ['Tous', 'Vin blanc', 'Vin rouge'];
     const [panier, setPanier] = useState([]);
     const [total, setTotal] = useState(0);
     const [showModal, setShowModal] = useState(false);
-
+    const [filteredWines, setFilteredWines] = useState([]);
+    const [wineList, setWineList] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('')
 
     const vins = [
-        {
-          id: 1,
-          nom: "Château Margaux 2018",
-          type: "Rouge",
-          region: "Bordeaux",
-          volume: "750ml",
-          prix: 89.90,
-          stock: 15,
-          image: "🍷"
-        },
-        {
-          id: 2,
-          nom: "Chablis Premier Cru 2020",
-          type: "Blanc",
-          region: "Bourgogne",
-          volume: "750ml",
-          prix: 35.50,
-          stock: 0,
-          image: "🍷"
-        },
-        {
-          id: 3,
-          nom: "Côtes de Provence 2021",
-          type: "Rosé",
-          region: "Provence",
-          volume: "750ml",
-          prix: 18.90,
-          stock: 8,
-          image: "🍷"
-        },
-        {
-          id: 4,
-          nom: "Moët & Chandon Brut",
-          type: "Champagne",
-          region: "",
-          volume: "750ml",
-          prix: 45.00,
-          stock: 12,
-          image: "🍾"
-        }
-      ];
-
+      {
+        id: 1,
+        nom: "Château Margaux 2018",
+        type: "Rouge",
+        region: "Bordeaux",
+        volume: "750ml",
+        prix: 89.90,
+        stock: 15,
+        image: "🍷"
+      },
+      {
+        id: 2,
+        nom: "Chablis Premier Cru 2020",
+        type: "Blanc",
+        region: "Bourgogne",
+        volume: "750ml",
+        prix: 35.50,
+        stock: 0,
+        image: "🍷"
+      },
+      {
+        id: 3,
+        nom: "Côtes de Provence 2021",
+        type: "Rosé",
+        region: "Provence",
+        volume: "750ml",
+        prix: 18.90,
+        stock: 8,
+        image: "🍷"
+      },
+      {
+        id: 4,
+        nom: "Moët & Chandon Brut",
+        type: "Champagne",
+        region: "",
+        volume: "750ml",
+        prix: 45.00,
+        stock: 12,
+        image: "🍾"
+      }
+    ];
+    
+    useEffect(()=>{
+      setWineList(vins);
+      setFilteredWines(vins);
+    },[])
+    
+    useEffect(() => {
+      let filtered = wineList;
+    
+      if (ActiveCategory !== 'Tous') {
+        filtered = filtered.filter(wine =>
+          wine.type.toLowerCase() === ActiveCategory.toLowerCase().replace("vin ", "")
+        );
+      }
+    
+      if (searchTerm) {
+        filtered = filtered.filter(wine =>
+          wine.nom.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+    
+      setFilteredWines(filtered);
+    }, [searchTerm, wineList, ActiveCategory]);
+    
+    
     const addToCart = (wine) =>{
       // Vérifier d'abord si le stock est disponible
       if (wine.stock <= 0) {
@@ -115,7 +142,7 @@ export default function Selling() {
     const handlePayment = () => {
       setShowModal(true);
     };
-    
+
     return(
     <div className="w-full h-full flex flex-row items-center gap-3">
      {showModal && (
@@ -193,19 +220,11 @@ export default function Selling() {
         </div>
       )}
 
-
         <div className="h-full w-full flex flex-col">
             <div className="w-full p-2 flex flex-col gap-3 h-40">
-                <h1 className="font-bold text-xl">Catalogues de vins</h1>
-                <div className="flex">
-                    <input
-                    type="text"
-                    placeholder="Rechercher un vin..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-l focus:outline-none"
-                    />
-                    <button className="bg-red-900 text-white px-4 rounded-r">
-                    <Search size={18} />
-                    </button>
+                <h1 className="text-2xl font-bold">Catalogues de vins</h1>
+                <div className="">
+                    <SearchInput placeholder={"Recherche par nom"} onChange={setSearchTerm}/>
                 </div>
                 <div className="flex flex-row gap-6">
                 {categories.map(category => (
@@ -216,7 +235,7 @@ export default function Selling() {
                         ? 'bg-red-800 text-white'
                         : 'bg-gray-100 hover:bg-gray-200'
                     }`}
-                    onClick={() => setActiveCategoey(category)}
+                    onClick={() => setActiveCategory(category)}
                 >
                     {category}
                 </button>
@@ -224,7 +243,7 @@ export default function Selling() {
                 </div>  
             </div>
             <div className="scrollable p-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 h-auto overflow-y-auto">
-                <WineCardList items = {vins} addToCart={addToCart}/>
+                <WineCardList items = {filteredWines} addToCart={addToCart}/>
             </div>
         </div>
         <div className="md:w-80 lg:w-96 xl:w-[410px] h-[90%]  bg-white rounded-lg shadow p-2 flex flex-col">

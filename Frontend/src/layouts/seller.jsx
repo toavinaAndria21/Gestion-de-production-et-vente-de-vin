@@ -5,10 +5,7 @@ import { Outlet } from "react-router-dom";
 export default function SellerLayout() {
   const menu = [
     { name: "Nouvelle Vente", path: "/seller/selling", icon: <ShoppingCart size={18} /> },
-    { name: "Produits", path: "/seller/products", icon: <Wine size={18} /> },
     { name: "Historique", path: "/seller/history", icon: <List size={18} /> },
-    // { name: "Clients", path: "/seller/clients", icon: <Users size={18} /> },
-    // { name: "Paramètres", path: "/seller/parametres", icon: <Settings size={18} /> },
   ];
 
   return (

@@ -1,6 +1,8 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import SellerLayout from "./layouts/seller";
-import sellerRoute from "./routes/seller"
+import sellerRoute from "./routes/seller";
+import AdminLayout from "./layouts/admin";
+import adminRoute from "./routes/admin";
 
 const router = createBrowserRouter([
   {
@@ -8,6 +10,11 @@ const router = createBrowserRouter([
     element: <SellerLayout/>,
     children: sellerRoute
   },
+  {
+    path:'/admin',
+    element:<AdminLayout/>,
+    children: adminRoute
+  }
 
 ]);
 

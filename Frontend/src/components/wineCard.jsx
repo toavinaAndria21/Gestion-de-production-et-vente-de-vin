@@ -2,7 +2,8 @@ export default function WineCardList({items, addToCart}) {
 
     return(
         <>
-        {items.map((wine) => (
+        { items.length > 0 ? (
+        items.map((wine) => (
             <div key={wine.id} className="bg-white max-w-[250px] h-[280px] lg:h-80 rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden">
               <div className="h-44 bg-gray-100 flex items-center justify-center text-4xl relative">
                 {wine.image}
@@ -36,7 +37,10 @@ export default function WineCardList({items, addToCart}) {
                 </button>
               </div>
             </div>
-          ))}
+          ))
+        ) : (
+                <p className="text-lg text-gray-600 text-center">Aucune bouteille disponible</p>
+        )}
         </>
     )
 }
