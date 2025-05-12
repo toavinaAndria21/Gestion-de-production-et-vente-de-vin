@@ -18,15 +18,6 @@ export class ProductService {
 
     static async create(product: Product) {
         try {
-            // const existingProduct = await prisma.product.findFirst({
-            //     where: {
-            //         label: product.label,
-            //     },
-            // });
-
-            // if (existingProduct) {
-            //     throw new Error("Un produit avec ce nom existe déjà");
-            // }
             const newProduct = await prisma.product.create({
                 data: {
                     vintageId: product.vintageId,
