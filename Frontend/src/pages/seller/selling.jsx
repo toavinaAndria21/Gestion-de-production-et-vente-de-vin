@@ -149,7 +149,13 @@ export default function Selling() {
               <div className="text-center text-gray-500 py-4">
                 Le panier est vide
               </div>
-            )}
+            )}touch src/pages/productor/ingredients.tsx
+            touch src/pages/productor/steps.tsx
+            touch src/pages/productor/vintage.tsx
+            touch src/pages/productor/bottling.tsx
+            touch src/pages/productor/products.tsx
+            touch src/pages/productor/reports.tsx
+            touch src/pages/productor/settings.tsx
           </div>
           
           {/* Cart Summary */}
