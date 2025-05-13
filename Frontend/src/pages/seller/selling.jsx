@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { Search, Minus, Plus } from "lucide-react";
-import '../../css/scrollBar.css';
 import WineCardList from "../../components/wineCard";
 import SearchInput from "../../components/searchInput";
+import { API_URL } from "../../config/api";
+import { useToast } from "../../context/toastContext";
+import '../../css/scrollBar.css';
 
 export default function Selling() {
     const[ActiveCategory, setActiveCategory] = useState('Tous');
@@ -12,54 +14,37 @@ export default function Selling() {
     const [showModal, setShowModal] = useState(false);
     const [filteredWines, setFilteredWines] = useState([]);
     const [wineList, setWineList] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('')
+    const [searchTerm, setSearchTerm] = useState('');
+    const { showSuccess, showError, showAlert } = useToast();
 
-    const vins = [
-      {
-        id: 1,
-        nom: "Château Margaux 2018",
-        type: "Rouge",
-        region: "Bordeaux",
-        volume: "750ml",
-        prix: 89.90,
-        stock: 15,
-        image: "🍷"
-      },
-      {
-        id: 2,
-        nom: "Chablis Premier Cru 2020",
-        type: "Blanc",
-        region: "Bourgogne",
-        volume: "750ml",
-        prix: 35.50,
-        stock: 0,
-        image: "🍷"
-      },
-      {
-        id: 3,
-        nom: "Côtes de Provence 2021",
-        type: "Rosé",
-        region: "Provence",
-        volume: "750ml",
-        prix: 18.90,
-        stock: 8,
-        image: "🍷"
-      },
-      {
-        id: 4,
-        nom: "Moët & Chandon Brut",
-        type: "Champagne",
-        region: "",
-        volume: "750ml",
-        prix: 45.00,
-        stock: 12,
-        image: "🍾"
+    const getAllWines = async () => {
+      try {
+        const response = await fetch(`${API_URL}/product`);
+        const data = await response.json();
+        console.log(data)
+        const wines = data.map(item => {
+          return {
+            id: item.productId,
+            nom: item.label, 
+            type: item.type, 
+            vintageLabel: item.vintage ? item.vintage.label : "",
+            volume: `${item.format.quantity}${item.format.unit}`,
+            prix: parseInt(item.price),
+            stock: item.stock,
+            image: item.image || ""
+          };
+        });
+        setWineList(wines); 
+        setFilteredWines(wines);
+      } catch (error) {
+        console.error("Erreur lors de la récupération des vins :", error);
       }
-    ];
+    };
     
     useEffect(()=>{
-      setWineList(vins);
-      setFilteredWines(vins);
+     
+      getAllWines();
+    
     },[])
     
     useEffect(() => {
@@ -91,18 +76,18 @@ export default function Selling() {
 
       // Vérifier si l'ajout dépasse le stock disponible
       if (vinExistant) {
-        if (vinExistant.quantite >= wine.stock) {
+        if (vinExistant.stock >= wine.stock) {
           alert(`Désolé, il ne reste que ${wine.stock} bouteille(s) de ${wine.nom} en stock.`);
           return;
         }
         
         setPanier(panier.map(item => 
           item.id === wine.id 
-            ? { ...item, quantite: item.quantite + 1 } 
+            ? { ...item, stock: item.stock + 1 } 
             : item
         ));
       } else {
-        setPanier([...panier, { ...wine, quantite: 1 }]);
+        setPanier([...panier, { ...wine, stock: 1 }]);
       }
 
       setTotal(total => total + wine.prix)
@@ -118,20 +103,20 @@ export default function Selling() {
     const itemPanier = panier.find(item => item.id === id);
     
     // Trouver le vin correspondant dans la liste des vins pour vérifier le stock
-    const vinReference = vins.find(vin => vin.id === id);
+    const vinReference = wineList.find(vin => vin.id === id);
     
     if (itemPanier && vinReference) {
       // Si on augmente la quantité, vérifier si le stock est suffisant
-      if (ajustement > 0 && itemPanier.quantite >= vinReference.stock) {
-        alert(`Désolé, il ne reste que ${vinReference.stock} bouteille(s) de ${itemPanier.nom} en stock.`);
+      if (ajustement > 0 && itemPanier.stock >= vinReference.stock) {
+        showAlert(`Désolé, il ne reste que ${vinReference.stock} bouteille(s) de ${itemPanier.nom} en stock.`);
         return;
       }
     }
     
     setPanier(panier.map(item => {
       if (item.id === id) {
-        const nouvelleQuantite = item.quantite + ajustement;
-        return nouvelleQuantite > 0 ? { ...item, quantite: nouvelleQuantite } : null;
+        const nouvelleQuantite = item.stock + ajustement;
+        return nouvelleQuantite > 0 ? { ...item, stock: nouvelleQuantite } : null;
       }
       return item;
     }).filter(Boolean));
@@ -143,8 +128,43 @@ export default function Selling() {
       setShowModal(true);
     };
 
+    const savePayment = async () => {
+      try {
+        const sellerId = "313011044286";
+        const products = panier.map(item => ({
+          productId: item.id,
+          quantity: item.stock,
+        }));
+    
+        const requestBody = {
+          sellerId,
+          products,
+        };
+    
+        const response = await fetch(`${API_URL}/product/sale`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+    
+        if (response.ok) {
+          const data = await response.json();
+          getAllWines();
+          showSuccess("Vente enregistrée avec succès");
+        } else {
+          console.error("Erreur lors de l'enregistrement de la vente", response.statusText);
+          showError("Erreur lors de l'enregistrement de la vente")
+        }
+      } catch (error) {
+        console.error("Erreur de communication avec l'API", error);
+      }
+    };
+
     return(
     <div className="w-full h-full flex flex-row items-center gap-3">
+      
      {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white w-[90%] max-w-2xl rounded-lg shadow-lg p-6">
@@ -185,9 +205,9 @@ export default function Selling() {
                       {item.nom}
                       <div className="text-xs text-gray-500 italic">Millésime: {item.millesime || "—"}</div>
                     </td>
-                    <td className="text-center">{item.quantite}</td>
-                    <td className="text-right">{item.prix.toFixed(2)} €</td>
-                    <td className="text-right">{(item.prix * item.quantite).toFixed(2)} €</td>
+                    <td className="text-center">{item.stock}</td>
+                    <td className="text-right">{item.prix.toFixed(2)} MGA</td>
+                    <td className="text-right">{(item.prix * item.stock).toFixed(2)} MGA</td>
                   </tr>
                 ))}
               </tbody>
@@ -195,7 +215,7 @@ export default function Selling() {
 
             <div className="flex justify-between font-bold text-lg border-t pt-2">
               <span>Total à payer:</span>
-              <span className="">{total.toFixed(2)} €</span>
+              <span className="">{total.toFixed(2)} MGA</span>
             </div>
 
             <div className="flex justify-end mt-6 gap-3">
@@ -208,7 +228,7 @@ export default function Selling() {
               <button
                 className="px-4 py-2 bg-red-900 text-white rounded"
                 onClick={() => {
-                  alert("Paiement confirmé !");
+                  savePayment()
                   clearCart();
                   setShowModal(false);
                 }}
@@ -259,7 +279,7 @@ export default function Selling() {
                   </div>
                   <div className="flex-1">
                     <div className="font-bold">{item.nom}</div>
-                    <div className="text-red-900 font-bold">{item.prix.toFixed(2)} €</div>
+                    <div className="text-red-900 font-bold">{item.prix.toFixed(2)} MGA</div>
                     <div className="flex items-center mt-1">
                       <button
                         className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center"
@@ -267,7 +287,7 @@ export default function Selling() {
                       >
                         <Minus size={14} />
                       </button>
-                      <span className="mx-2">{item.quantite}</span>
+                      <span className="mx-2">{item.stock}</span>
                       <button
                         className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center"
                         onClick={() => ajustQuantity(item.id, 1)}
@@ -282,13 +302,7 @@ export default function Selling() {
               <div className="text-center text-gray-500 py-4">
                 Le panier est vide
               </div>
-            )}touch src/pages/productor/ingredients.tsx
-            touch src/pages/productor/steps.tsx
-            touch src/pages/productor/vintage.tsx
-            touch src/pages/productor/bottling.tsx
-            touch src/pages/productor/products.tsx
-            touch src/pages/productor/reports.tsx
-            touch src/pages/productor/settings.tsx
+            )}
           </div>
           
           {/* Cart Summary */}
@@ -296,7 +310,7 @@ export default function Selling() {
             <div className="pt-2 border-t border-gray-200">
               <div className="flex justify-between text-lg font-bold mb-2">
                 <span>Total:</span>
-                <span>{total.toFixed(2)} €</span>
+                <span>{total.toFixed(2)} MGA</span>
               </div>
               
               {/* Actions */}

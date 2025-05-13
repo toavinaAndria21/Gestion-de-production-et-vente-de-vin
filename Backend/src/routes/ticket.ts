@@ -17,5 +17,6 @@ ticketRouter.put("/:ticketId", TicketController.updateTicket);
 
 // Supprimer un ticket
 ticketRouter.delete("/:ticketId", TicketController.deleteTicket);
+ticketRouter.get("/history", TicketController.getPaidSalesHistoryController)
 
 export default ticketRouter;

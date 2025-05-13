@@ -5,6 +5,7 @@ import AdminLayout from "./layouts/admin";
 import adminRoute from "./routes/admin";
 import ProductorLayout from "./layouts/productor";
 import productorRoute from "./routes/productor";
+import { ToastProvider } from "./context/toastContext";
 
 const router = createBrowserRouter([
   {
@@ -28,8 +29,10 @@ const router = createBrowserRouter([
 function App() {
 
   return(
-    <RouterProvider router={router}>
-    </RouterProvider>
+    <ToastProvider>
+      <RouterProvider router={router}>
+      </RouterProvider>
+    </ToastProvider>
   )
 }
   
