@@ -19,10 +19,10 @@ export default function WineCardList({items, addToCart}) {
               <div className="p-4">
                 <div className="font-bold mb-1">{wine.nom}</div>
                 <div className="text-gray-600 text-sm mb-2">
-                  {wine.type} • {wine.region} • {wine.volume}
+                  {wine.type} • {wine.vintageLabel} • {wine.volume}
                 </div>
                 <div className="flex justify-between items-center mb-2">
-                  <div className="font-bold text-red-900">{wine.prix.toFixed(2)} €</div>
+                  <div className="font-bold text-red-900">{wine.prix.toFixed(2)} MGA</div>
                   <div className="text-xs text-gray-500">
                     {wine.stock === 0 ? 'Indisponible' : 'Disponible'}
                   </div>

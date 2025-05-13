@@ -1,12 +1,3 @@
-
-// 9. Ticket
-// Dépend de Client et Personnel (Vendeur)
-
-// Méthodes : createTicket, getTicketsByClient, getTicketsBySeller, updateTicket, deleteTicket
-
-
-
-
 import { Ticket } from "../type/ticket";
 import prisma from "../config/prisma";
 
@@ -82,4 +73,24 @@ export class TicketService {
       throw new Error("Erreur lors de la suppression du ticket.");
     }
   }
+
+  static async getPaidSalesHistory() {
+    return await prisma.ticket.findMany({
+      where: {
+        state: 'Payé', 
+      },
+      include: {
+        ticketLines: {
+          include: {
+            product: true,
+          },
+        },
+        payment: true, 
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+  
 }

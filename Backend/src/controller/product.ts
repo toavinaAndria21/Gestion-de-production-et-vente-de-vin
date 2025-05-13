@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { ProductService } from "../service/product";
+import { ProductInput } from "../type/product";
 
 export class ProductController {
     static async getAllProduct(req:Request, res:Response){
@@ -25,11 +26,11 @@ export class ProductController {
     }
     static async createProduct(req:Request, res:Response) {
         try {
-            const { vintageId, formatId, label, price } = req.body;
+            const { vintageId, formatId, label, price, stock, type, image, category } = req.body;
             if (!vintageId || !formatId || !label || !price) {
                 res.status(400).json({ message: "Champs requis manquants" });
             }
-            const newProduct = await ProductService.create({vintageId, formatId, label, price});
+            const newProduct = await ProductService.create({vintageId, formatId, label, price, stock, type, image, category});
             res.status(201).json({message:"Produit crée avec succes", data:newProduct})
         } catch (error) {
             res.status(500).json({message:"Erreur de creation de produit"});
@@ -69,6 +70,28 @@ export class ProductController {
                 res.status(200).json(products)
         } catch (error) {
             res.status(500).json({message:"Erreur de recuperation"});
+        }
+    }
+
+    static async sellingProduct(req:Request, res:Response) {
+        try {
+            const { sellerId, products } : {sellerId: string, products:ProductInput[]} = req.body;
+
+            if (!sellerId || !products || !Array.isArray(products)) {
+                res.status(400).json({ error: "Champs manquants ou invalides." });
+              }
+
+            for (let product of products) {
+                if (!product.productId || typeof product.quantity !== 'number' || product.quantity <= 0) {
+                res.status(400).json({ error: "Produit invalide dans la liste." });
+                }
+            }
+            const ticket = await ProductService.createTicketWithPayment(sellerId, products);
+
+            res.status(201).json({ message: "Vente enregistrée avec succès", ticket });
+          
+        } catch (error) {
+            res.status(500).json({message: "Erreur lors de l'opération"})
         }
     }
 }

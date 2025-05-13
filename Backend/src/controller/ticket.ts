@@ -52,4 +52,14 @@ export class TicketController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static  async getPaidSalesHistoryController(req: Request, res: Response) {
+    try {
+      const sales = await TicketService.getPaidSalesHistory();
+      res.status(200).json(sales);
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'historique des ventes :", error);
+      res.status(500).json({ error: "Une erreur est survenue lors de la récupération des ventes." });
+    }
+  };
 }

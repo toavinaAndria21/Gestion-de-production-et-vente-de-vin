@@ -34,6 +34,17 @@ enum DeliveryState {
   NonLivré
 }
 
+enum WineType {
+  Blanc
+  Rouge
+}
+
+enum Collection {
+  Prestige
+  Standard
+  Découverte
+}
+
 model Personnel {
   personnelId String @id
   name String 
@@ -103,6 +114,10 @@ model Product {
   formatId Int
   label String
   price Decimal
+  type WineType
+  stock Int @default(0)
+  category Collection
+  image String
   createdAt DateTime @default(now())
 
   vintage Vintage @relation(fields: [vintageId], references: [vintageId])

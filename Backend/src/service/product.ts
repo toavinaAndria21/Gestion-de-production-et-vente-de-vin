@@ -1,7 +1,9 @@
 import { Product } from "../type/product";
 import prisma from "../config/prisma";
+import { ProductInput } from "../type/product";
 
 export class ProductService {
+    
     static async getAll() {
         try {
             return await prisma.product.findMany({
@@ -18,21 +20,17 @@ export class ProductService {
 
     static async create(product: Product) {
         try {
-            // const existingProduct = await prisma.product.findFirst({
-            //     where: {
-            //         label: product.label,
-            //     },
-            // });
-
-            // if (existingProduct) {
-            //     throw new Error("Un produit avec ce nom existe déjà");
-            // }
             const newProduct = await prisma.product.create({
                 data: {
                     vintageId: product.vintageId,
                     formatId: product.formatId,
                     label: product.label,
                     price: product.price,
+                    type: product.type,
+                    stock: product.stock,
+                    category: product.category,
+                    image: product.image
+                    // type: product
                 }
             });
 
@@ -124,4 +122,60 @@ export class ProductService {
         }
     }
 
+    static async createTicketWithPayment(sellerId: string, products: ProductInput[]){
+        return await prisma.$transaction(async(tx)=>{
+            const ticket = await tx.ticket.create({
+                data:{
+                    sellerId,
+                    clientId:1,
+                    state:'Payé'
+                }
+            });
+
+            let totalAmount = 0
+            for(const item of products) {
+
+                const product = await tx.product.findUnique({
+                    where:{
+                        productId: item.productId
+                    }
+                });
+
+                if (!product || product.stock < item.quantity) {
+                    throw new Error(`Stock insuffisant pour le produit ID ${item.productId}`);
+                }
+
+                totalAmount += product.price.toNumber() * item.quantity;
+
+                await tx.ticketLine.create({
+                    data: {
+                      ticketId: ticket.ticketId,
+                      productId: item.productId,
+                      quantity: item.quantity,
+                    },
+                  });
+            
+                  // Mettre à jour le stock du produit
+                  await tx.product.update({
+                    where: { productId: item.productId },
+                    data: {
+                      stock: {
+                        decrement: item.quantity,
+                      },
+                    },
+                  });
+            }
+
+            await tx.payment.create({
+                data: {
+                cashierId: sellerId,
+                ticketId: ticket.ticketId,
+                amount: totalAmount,
+                },
+            });
+        
+            return ticket;
+        
+        })
+    }
 }

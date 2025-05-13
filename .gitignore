@@ -3,3 +3,4 @@ Backend/.env
 Backend/list.txt
 Backend/node_modules/
 Frontend/node_modules/
+Frontend/.env
