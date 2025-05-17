@@ -71,4 +71,21 @@ export class TicketLineController {
       });
     }
   }
+
+  static async sellingHistory(req: Request, res: Response) {
+    
+    try {
+      const history = await TicketLineService.sellingHistory();
+      res.status(200).json({
+        message: "Historique des ventes récupéré avec succès !",
+        data: history
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Erreur de récupération de l'historique des ventes !",
+        error
+      });
+    }
+  }
+
 }
