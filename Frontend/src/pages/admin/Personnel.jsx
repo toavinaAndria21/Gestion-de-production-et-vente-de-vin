@@ -2,8 +2,9 @@ import { useEffect, useState } from "react"
 import SearchInput from "../../components/searchInput";
 import DataTable from "../../components/DataTable";
 import ConfirmDeleteModal from "../../components/confirmDeleteModal";
-import { ShieldAlert, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useToast } from "../../context/toastContext";
+import { API_URL } from "../../config/api";
 export default function Personnel() {
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +15,8 @@ export default function Personnel() {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [personToDelete, setPersonToDelete] = useState(null);
     const { showSucces, showError, showAlert } = useToast();
+    const [selectedPersonnel, setSelectedPersonnel] = useState(null);
+    const [filterStatus, setFilterStatus] = useState('Actif');
 
 
     const columns = [
@@ -57,6 +60,7 @@ export default function Personnel() {
                 className="px-2 py-1 text-xs text-blue-600 border border-blue-500 rounded hover:bg-blue-50"
                 onClick={() => {
                     setEditData(item); // mode modification
+                    setSelectedPersonnel(item.personnelId)
                     setIsModalOpen(true);
                   }}
               >
@@ -66,7 +70,7 @@ export default function Personnel() {
                 className="px-2 py-1 text-xs text-red-600 border border-red-500 rounded hover:bg-red-50"
                 onClick={() => handleDelete(item)}
               >
-                Supprimer
+                Désactiver
               </button>
             </div>
           ),
@@ -74,12 +78,11 @@ export default function Personnel() {
       ];
      
       const getUsersList = async () => {
-        const response = await fetch("http://localhost:4000/personnel");
+        const response = await fetch(`${API_URL}/personnel`);
         if (!response.ok) {
           throw new Error("Erreur lors de la récupération des données");
         }
         const data = await response.json();
-        console.log(data);
         setData(data);
         setFilteredData(data);
       };
@@ -90,66 +93,120 @@ export default function Personnel() {
         
       },[])
 
-      useEffect(()=>{
-        if(!searchTerm){
-            setFilteredData(data)
-        }else{
-            const result = data.filter(user => {
-                return (
-                    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    user.email.toLowerCase().includes(searchTerm.toLowerCase())    
-                )
-            })
+      useEffect(() => {
+        const result = data.filter((user) => {
+          const matchesSearch =
+            user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      
+          const matchesStatus = user.status === filterStatus;
+      
+          return matchesSearch && matchesStatus;
+        });
+      
         setFilteredData(result);
-        }
-      },[searchTerm, data])
+      }, [searchTerm, data, filterStatus]);
+      
 
       const handleDelete = (personnel) => {
         setPersonToDelete(personnel);
         setIsDeleteOpen(true);
       };
       
-      const confirmDelete = () => {
-        setData((prev) =>
-          prev.filter((p) => p.personnelId !== personToDelete.personnelId)
-        );
-        setIsDeleteOpen(false);
-        setPersonToDelete(null);
+      const confirmDelete = async () => {
+        try {
+          const res = await fetch(`${API_URL}/personnel/disable/${personToDelete.personnelId}`, {
+            method: "PUT",
+          });
+      
+          const result = await res.json();
+      
+          if (res.status === 200) {
+            showSucces("Utilisateur désactivé avec succès");
+            setData((prev) =>
+              prev.filter((p) => p.personnelId !== personToDelete.personnelId)
+            );
+            setIsDeleteOpen(false);
+            setPersonToDelete(null);
+            return;
+          }
+      
+          if (res.status === 404) {
+            showAlert("Utilisateur introuvable");
+            return;
+          }
+      
+          if (res.status === 500) {
+            showError("Échec de la désactivation");
+            return;
+          }
+      
+          showError("Une erreur inconnue est survenue");
+        } catch (error) {
+          console.error("Erreur lors de la désactivation :", error);
+          showError("Erreur lors de la désactivation");
+        }
       };
+      
+      
       
       const handleCreatePersonnel = async (newData) => {
-        console.log(newData);
-        // try {
-        //   const res = await fetch("http://localhost:4000/personnel", {
-        //     method: "POST",
-        //     headers: {
-        //       "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify(newData),
-        //   });
+        if(!newData.personnelId || !newData.name || !newData.lastName || !newData.email || !newData.role) {
+          showError("Veuillez remplir tous les champs.");
+          return;
+        }
+        try {
+          const res = await fetch(`${API_URL}/personnel`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(newData),
+          });
       
-        //   if (!res.ok) throw new Error("Échec de la création");
+          const result = await res.json();
       
-        //   const created = await res.json();
-        //   setData((prev) => [...prev, created]);
-        //   setIsModalOpen(false);
-        // } catch (error) {
-        //   console.error("Erreur lors de la création :", error);
-        //   alert("Une erreur est survenue lors de la création.");
-        // }
+          if (res.status === 201) {
+            setData((prev) => [...prev, result]); 
+            showSucces(result.message || "Utilisateur créé avec succès");
+            setIsModalOpen(false);
+            return;
+          }
+      
+          if (res.status === 400) {
+            showError(result.message || "Données invalides");
+            return;
+          }
+      
+          if (res.status === 409) {
+            showAlert(result.message || "Conflit : utilisateur déjà existant");
+            return;
+          }
+      
+          if (res.status === 500) {
+            showError(result.message || "Erreur interne du serveur");
+            return;
+          }
+      
+          // Pour tout autre cas inattendu
+          showError("Une erreur inattendue est survenue.");
+        } catch (error) {
+          console.error("Erreur lors de la création :", error);
+          showError("Une erreur est survenue lors de la création.");
+        }
       };
+      
       
       const handleUpdatePersonnel = async (newData) => {
         try {
-          const res = await fetch(`http://localhost:4000/personnel/update/${newData.personnelId}`, {
+          const res = await fetch(`${API_URL}/personnel/update/${selectedPersonnel}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(newData),
           });
-          console.log("Réponse brute :", res);
       
           if (res.status === 500) {
             showError("Échec de la mise à jour");
@@ -157,7 +214,7 @@ export default function Personnel() {
           }
           
           if (res.status === 404) {
-            ShieldAlert("Utilisateur introuvable");
+            showAlert("Utilisateur introuvable");
             return;
           }
       
@@ -185,12 +242,24 @@ export default function Personnel() {
                     <div className="flex">
                         <SearchInput placeholder={"Recherche par nom ou email"} onChange={setSearchTerm}/>
                     </div>
+                    <div className="flex gap-6">
+                    <button
+                      className="bg-gray-200 font-medium px-4 rounded text-gray-700"
+                      onClick={() => {
+                        setFilterStatus((prev) => (prev === 'Actif' ? 'Inactif' : 'Actif'));
+                      }}
+                    >
+                      Filtre : {filterStatus}
+                    </button>
+
                     <button className="bg-red-900 text-white px-4 rounded"
                      onClick={() => {
                         setEditData(null); // mode création
                         setIsModalOpen(true);
                       }}
-                    >Créer un utilisateur</button>
+                    >Créer un utilisateur
+                    </button>
+                    </div>
                 </div>
             <DataTable data={filteredData} columns={columns}/>
         </div>
@@ -210,7 +279,7 @@ export default function Personnel() {
             isOpen={isDeleteOpen}
             onClose={() => setIsDeleteOpen(false)}
             onConfirm={confirmDelete}
-            message={`Voulez-vous vraiment supprimer ${personToDelete?.name} ${personToDelete?.lastName} ?`}
+            message={`Voulez-vous vraiment désactiver ${personToDelete?.name} ${personToDelete?.lastName} ?`}
             />
         </>
     )
@@ -278,7 +347,6 @@ function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
             <button
               onClick={()=>{
                 onClose();
-                resetForm();
               }}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
               aria-label="Fermer"

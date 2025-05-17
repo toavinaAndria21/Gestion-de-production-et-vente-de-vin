@@ -10,5 +10,6 @@ personnelRouter.delete("/delete/:cin", personnelController.deleteUser);
 personnelRouter.get("/:cin", personnelController.getUserById);
 personnelRouter.get("/search/:searchTerm", personnelController.getUserByName);
 personnelRouter.get("/role/:cin", personnelController.getUserRole);
+personnelRouter.put("/disable/:cin", personnelController.disableUser);
 
 export default personnelRouter;

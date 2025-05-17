@@ -45,6 +45,10 @@ enum Collection {
   Découverte
 }
 
+enum UserStatus {
+  Actif
+  Inactif
+}
 model Personnel {
   personnelId String @id
   name String 
@@ -52,6 +56,7 @@ model Personnel {
   email String @unique
   password String
   role Role
+  status UserStatus @default(Actif)
   createdAt DateTime @default(now())
 
   ingredients Ingredient[]

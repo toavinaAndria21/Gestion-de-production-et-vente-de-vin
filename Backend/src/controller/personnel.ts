@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { personnelService } from '../service/personnel';
+
 export class personnelController {
     static async getAllPersonnel(req:Request, res:Response){
         try {
@@ -17,11 +18,21 @@ export class personnelController {
     
     static async createUSer(req:Request, res:Response){
         try {
-            const { cin, name, lastName, email, password, role } = req.body;
-            const newUser = await personnelService.create({ cin, name, lastName, email, password, role });
-            res.status(201).json(newUser);
+            const { personnelId, name, lastName, email, role } = req.body;
+            if(!personnelId || !name || !lastName || !email || !role) {
+                res.status(400).json({ message: 'Tous les champs sont obligatoires' });
+                return;
+            }else {
+                const password = personnelId;
+                const newUser = await personnelService.create({ personnelId, name, lastName, email, password, role });
+                res.status(201).json(newUser);
+            }
         } catch (error) {
-            res.status(500).json({ message: 'Une erreur est survenue lors de la creation' });
+            if(error instanceof Error && error.message === "Un utilisateur avec ce CIN existe déjà") {
+                res.status(409).json({ message: 'Un utilisateur avec ce CIN existe déjà' });
+            } else {
+                res.status(500).json({ message: 'Une erreur est survenue lors de la creation' });
+            }
         }
     }
 
@@ -38,9 +49,10 @@ export class personnelController {
     static async updateUser(req: Request, res: Response) {
         try {
           const { cin } = req.params;
-          const { name, lastName, email, password, role } = req.body;
+          const { name, lastName, email, password, role, personnelId } = req.body;
       
           const updatedUser = await personnelService.update(cin, {
+            personnelId,
             name,
             lastName,
             email,
@@ -62,6 +74,26 @@ export class personnelController {
             }
         }
       }
+    
+    static async disableUser(req: Request, res: Response) {
+        const { cin } = req.params; 
+        try {
+            const userUpdated = await personnelService.disable(cin);
+            res.status(200).json({
+                message: "Utilisateur désactivé avec succès",
+                data: userUpdated,
+            });
+        } catch (error) {
+            if (error instanceof Error && error.message === "Aucun utilisateur trouvé avec ce CIN") {
+                res.status(404).json({message: "Aucun utilisateur trouvé avec ce CIN"});
+            } else {
+            res.status(500).json({
+                message: "Une erreur est survenue lors de la mise à jour de l'utilisateur",
+                error: error instanceof Error ? error.message : String(error),
+            });  
+        }
+        }
+    }
     
     static async deleteUser(req: Request, res: Response) {
         const {cin} = req.params;
