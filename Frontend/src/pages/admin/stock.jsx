@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SearchInput from '../../components/searchInput';
 import DataTable from '../../components/DataTable';
+import { API_URL } from '../../config/api';
 
 export default function Stock() {
+  const [stockActif, setStockActif] = useState('vins');
+  const [filtreType, setFiltreType] = useState('tous');
+  const [recherche, setRecherche] = useState('');
+  const [vins, setVins] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+
   const columns = [
-    { key: "productId", label: "ID" },
     { key: "label", label: "Nom" },
     {
       key: "vintage",
@@ -16,10 +22,11 @@ export default function Stock() {
       label: "Format",
       render: (item) => `${item.format.label} (${item.format.quantity} cL)`
     },
+    { key: "stock", label: "Stock" },
     {
       key: "price",
       label: "Prix",
-      render: (item) => `${(item.price / 1000).toFixed(1)} Ar`
+      render: (item) => `${(item.price.toLocaleString('fr-FR'))} Ar`
     },
     {
       key: "createdAt",
@@ -45,13 +52,13 @@ export default function Stock() {
     { key: "label", label: "Ingrédient" },
     {
       key: "quantity",
-      label: "Quantité (kg)",
-      render: (item) => `${item.quantity} kg`
+      label: "Quantité",
+      render: (item) => `${item.quantity} ${item.unit}`
     },
     {
       key: "threshold",
-      label: "Seuil (kg)",
-      render: (item) => `${item.threshold} kg`
+      label: "Seuil",
+      render: (item) => `${item.threshold} ${item.unit}`
     },
     { key: "provider", label: "Fournisseur" },
     {
@@ -63,98 +70,83 @@ export default function Stock() {
       key: "createdAt",
       label: "Ajouté le",
       render: (item) => new Date(item.createdAt).toLocaleDateString("fr-FR")
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (item) => (
-        <button
-          className="text-blue-600 border border-blue-600 p-1 rounded font-medium text-xs"
-          onClick={() => console.log("Modifier ingrédient ID:", item.ingredientId)}
-        >
-          Modifier
-        </button>
-      )
     }
   ];
 
-  const [vins, setVins] = useState([
-    {
-      productId: 1,
-      label: "Vin Rouge Prestige",
-      price: 14900,
-      createdAt: "2024-12-01T10:00:00Z",
-      vintage: { label: "2020", quality: "AOC" },
-      format: { label: "Bouteille", quantity: 75 },
-      type: "Rouge",
-      region: "Bordeaux"
-    },
-    {
-      productId: 2,
-      label: "Vin Blanc Sec",
-      price: 9900,
-      createdAt: "2024-11-20T09:30:00Z",
-      vintage: { label: "2021", quality: "IGP" },
-      format: { label: "Demi-bouteille", quantity: 37.5 },
-      type: "Blanc",
-      region: "Alsace"
-    },
-    {
-      productId: 3,
-      label: "Rosé Été",
-      price: 10900,
-      createdAt: "2024-10-12T14:15:00Z",
-      vintage: { label: "2022", quality: "Bio" },
-      format: { label: "Magnum", quantity: 150 },
-      type: "Rosé",
-      region: "Provence"
+  const getAllIngredients = async () => {
+    try {
+      const response = await fetch(`${API_URL}/ingredient`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des vins');
+      }
+      const res = await response.json();
+      const ingredients = res.data;
+      const formatted = ingredients.map((item) => ({
+        ingredientId: item.ingredientId,
+        label: item.label,
+        quantity: parseInt(item.quantity, 10),
+        threshold: parseInt(item.threshold, 10),
+        unit: item.unit, 
+        provider: item.provider,
+        createdAt: item.createdAt,
+        productor: {
+          name: item.productor.name,
+          lastName: item.productor.lastName
+        }
+      }));
+  
+      setIngredients(formatted);
+    } catch (error) {
+      console.error('Erreur:', error);
     }
-  ]);
+  }
 
-  const [ingredients, setIngredients] = useState([
-    {
-      ingredientId: 1,
-      label: "Raisin Rouge",
-      quantity: 120.5,
-      threshold: 100.0,
-      provider: "Domaine Lova",
-      createdAt: "2025-04-10T08:30:00Z",
-      productor: { name: "Ando", lastName: "Razanajatovo" }
-    },
-    {
-      ingredientId: 2,
-      label: "Sucre de Canne",
-      quantity: 30,
-      threshold: 50,
-      provider: "Sucreco",
-      createdAt: "2025-04-15T10:00:00Z",
-      productor: { name: "Tojo", lastName: "Rakoto" }
-    },
-    {
-      ingredientId: 3,
-      label: "Levure Naturelle",
-      quantity: 5,
-      threshold: 10,
-      provider: "BioFerment",
-      createdAt: "2025-03-28T12:15:00Z",
-      productor: { name: "Lova", lastName: "Andrianarivo" }
+  const getAllWines = async () => {
+    try {
+      const response = await fetch(`${API_URL}/product`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des vins');
+      }
+      const data = await response.json();
+  
+      const formatted = data.map((item) => ({
+        productId: item.productId,
+        label: item.label,
+        price: parseInt(item.price, 10),
+        createdAt: item.createdAt,
+        stock: item.stock,
+        vintage: {
+          label: item.vintage.label,
+          quality: item.vintage.quality,
+        },
+        format: {
+          label: item.format.label,
+          quantity: parseFloat(item.format.quantity),
+        },
+        type: item.type,
+      }));
+  
+      setVins(formatted);
+    } catch (error) {
+      console.error('Erreur:', error);
     }
-  ]);
+  };
+  
+  
+  useEffect(() => {
+    
+    getAllWines();
+    getAllIngredients();
 
-  const [stockActif, setStockActif] = useState('vins');
-  const [filtreType, setFiltreType] = useState('tous');
-  const [filtreRegion, setFiltreRegion] = useState('toutes');
-  const [recherche, setRecherche] = useState('');
+  }, []);
 
   const typesDeVin = ['tous', ...new Set(vins.map(vin => vin.type))];
-  const regionsDeVin = ['toutes', ...new Set(vins.map(vin => vin.region))];
+
 
   const vinsFiltres = vins.filter(vin =>
     (filtreType === 'tous' || vin.type === filtreType) &&
-    (filtreRegion === 'toutes' || vin.region === filtreRegion) &&
     (
-      vin.label.toLowerCase().includes(recherche.toLowerCase()) ||
-      vin.region.toLowerCase().includes(recherche.toLowerCase())
+      vin.label.toLowerCase().includes(recherche.toLowerCase()) 
     )
   );
 
@@ -165,23 +157,33 @@ export default function Stock() {
   const estEnRupture = (item) => item.quantity === 0;
   const estEnAlerte = (item) => item.quantity > 0 && item.quantity <= item.threshold;
 
+  const quantiteParUnite = ingredients.reduce((acc, ing) => {
+    const unit = ing.unit || "unités"; // par défaut
+    acc[unit] = (acc[unit] || 0) + ing.quantity;
+    return acc;
+  }, {});
+  const outOfStock = vins.filter(vin => vin.stock === 0).length;
+  const nbAlerte = ingredients.filter(ingredient => ingredient.quantity > 0 && ingredient.quantity <= ingredient.threshold).length;
+
   const stats = [
     {
       title: "Total des vins",
       value: `${vins.length} références`,
-      subtitle: "480 bouteilles en stock",
+      subtitle: `${vins.reduce((total, vin) => total + vin.stock, 0)} bouteilles en stock`,
       color: "blue",
     },
     {
       title: "Total des ingrédients",
       value: `${ingredients.length} types`,
-      subtitle: `${ingredients.reduce((total, i) => total + i.quantity, 0)} kg au total`,
-      color: "green",
-    },
+      subtitle: Object.entries(quantiteParUnite)
+        .map(([unit, total]) => `${total} ${unit}`)
+        .join(' + '),
+      color: "green"
+    },    
     {
       title: "Alertes de stock",
-      value: `${ingredients.filter(estEnRupture).length + ingredients.filter(estEnAlerte).length}`,
-      subtitle: "Produits en rupture ou sous le seuil d'alerte",
+      value: `${outOfStock} produits en rupture`,
+      subtitle: `${nbAlerte} ingredients sous le seuil d'alerte`,
       color: "red",
     },
   ];
@@ -204,7 +206,10 @@ export default function Stock() {
 
       <div className="flex mb-6 border-b">
         <button
-          onClick={() => setStockActif('vins')}
+          onClick={() => {
+            setStockActif('vins');
+            setRecherche('');
+          }}
           className={`py-2 px-4 font-medium ${stockActif === 'vins'
             ? 'border-b-2 border-blue-500 text-blue-600'
             : 'text-gray-500 hover:text-gray-700'}`}
@@ -212,7 +217,10 @@ export default function Stock() {
           Stock des Vins
         </button>
         <button
-          onClick={() => setStockActif('ingredients')}
+          onClick={() => {
+            setStockActif('ingredients');
+            setRecherche('');
+          }}
           className={`py-2 px-4 font-medium ${stockActif === 'ingredients'
             ? 'border-b-2 border-blue-500 text-blue-600'
             : 'text-gray-500 hover:text-gray-700'}`}

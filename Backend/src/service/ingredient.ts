@@ -15,7 +15,11 @@ export class IngredientService {
 
     static async getAll()  {
         try {
-            const ingredients = await prisma.ingredient.findMany();
+            const ingredients = await prisma.ingredient.findMany({
+                include: {
+                    productor: true,
+                },
+            });
             return ingredients;
         } catch (error) {
             throw new Error(`Erreur de recuperation des ingredients: ${error}`);
