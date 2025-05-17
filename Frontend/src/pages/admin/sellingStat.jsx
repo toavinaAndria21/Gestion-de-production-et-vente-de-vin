@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer 
 } from "recharts";
 import { Calendar, ChevronDown, ChevronUp, Filter, RefreshCw } from "lucide-react";
+import { API_URL } from "../../config/api";
 
 // Sample data - in a real application, this would come from API calls to your backend
 const sampleSalesData = [
@@ -15,29 +16,20 @@ const sampleSalesData = [
   { month: "Jun", monthlySales: 73000 },
 ];
 
-const sampleProductData = [
-  { name: "Vintage Rouge 2020", value: 35 },
-  { name: "Blanc Premium", value: 25 },
-  { name: "Rosé Prestige", value: 20 },
-  { name: "Grand Cru 2018", value: 15 },
-  { name: "Cuvée Spéciale", value: 5 },
-];
-
-const sampleClients = [
-  { id: 1, name: "Martin Dupont", purchases: 12500, tickets: 5 },
-  { id: 2, name: "Sophie Laurent", purchases: 9800, tickets: 3 },
-  { id: 3, name: "Pierre Moreau", purchases: 8700, tickets: 4 },
-  { id: 4, name: "Julie Blanc", purchases: 7500, tickets: 2 },
-  { id: 5, name: "Thomas Petit", purchases: 6300, tickets: 3 },
-];
-
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function SellingStat() {
+
   const [period, setPeriod] = useState("month");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [loading, setLoading] = useState(false);
+  const [barChartData, setBarCharData] = useState([]);
+  const [pieChartData, setPieChartData] = useState([]);
+  const [sellingHistoryData, setSellingHistoryData] = useState([]);
+  const [monthlySalesData, setMonthlySalesData] = useState([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalBottlesSold,setTotalBottlesSold] = useState(0);
   const [stats, setStats] = useState({
     totalSales: 348500,
     ticketCount: 127,
@@ -47,11 +39,108 @@ export default function SellingStat() {
 
   const handleRefresh = () => {
     setLoading(true);
-    // In a real application, you would fetch data here
+    getSellingStats();
     setTimeout(() => {
       setLoading(false);
     }, 800);
   };
+
+   const getSellingStats = async () => {
+      try {
+        const response = await fetch(`${API_URL}/ticketLine/history`);
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération de l'historique des ventes");
+        }
+    
+        const res = await response.json();
+        const data = res.data.map((sale) => {
+          const unitPrice = parseFloat(sale.product.price); 
+    
+          return {
+            date: sale.ticket.createdAt,
+            product: sale.product.label,
+            vintage: sale.product.vintage.label,
+            quantity: sale.quantity,
+            price: unitPrice,
+            total: unitPrice * sale.quantity,
+          };
+        });
+        setSellingHistoryData(data);
+        const totalBottlesSold = data.reduce((acc, sale) => acc + sale.quantity, 0);
+        setTotalBottlesSold(totalBottlesSold);
+
+        const amount = data.reduce((acc, sale) => acc + sale.total, 0);
+        setTotalAmount(amount);
+        const productSalesMap = {};
+        
+        data.forEach((sale) => {
+          if (productSalesMap[sale.product]) {
+            productSalesMap[sale.product] += sale.total;
+          } else {
+            productSalesMap[sale.product] = sale.total;
+          }
+        });
+    
+        // Format pour graphique en barres ou tableau (montant total par produit)
+        const barChartData = Object.entries(productSalesMap).map(([name, value]) => ({
+          name,
+          value,
+        }));
+
+        const pieChartData = Object.entries(productSalesMap)
+        .map(([name, value]) => ({
+          name,
+          value: amount > 0 ? Number(((value / amount) * 100).toFixed(2)) : 0,
+        }))
+
+        setBarCharData(barChartData);
+        setPieChartData(pieChartData);
+
+        //ventes mensuelles
+        const monthSalesMap = {};
+
+        data.forEach((sale) => {
+          const date = new Date(sale.date);
+          const monthIndex = date.getMonth();
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const month = monthNames[monthIndex];
+    
+          monthSalesMap[month] = (monthSalesMap[month] || 0) + sale.total;
+        });
+    
+        const monthlySalesData = Object.entries(monthSalesMap).map(([month, monthlySales]) => ({
+          month,
+          monthlySales,
+        })).sort((a, b) => {
+          // Pour garantir l'ordre des mois
+          const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+        });
+        setMonthlySalesData(monthlySalesData);
+
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    };
+
+    const produitsParQuantite = {};
+    sellingHistoryData.forEach(sale => {
+      if (produitsParQuantite[sale.product]) {
+        produitsParQuantite[sale.product] += sale.quantity;
+      } else {
+        produitsParQuantite[sale.product] = sale.quantity;
+      }
+    });
+    
+    const produitsLesPlusVendus = Object.entries(produitsParQuantite)
+      .map(([product, quantity]) => ({ product, quantity }))
+      .sort((a, b) => b.quantity - a.quantity);
+    useEffect(() => {
+
+      getSellingStats();
+
+    }
+    , []);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -138,29 +227,28 @@ export default function SellingStat() {
         
         {/* Key metrics cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Ventes totales</h3>
-            <p className="text-2xl font-bold">{stats.totalSales.toLocaleString()} €</p>
-            <div className="mt-2 text-sm text-green-600">+12% par rapport au mois dernier</div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Nombre de tickets</h3>
-            <p className="text-2xl font-bold">{stats.ticketCount}</p>
-            <div className="mt-2 text-sm text-green-600">+8% par rapport au mois dernier</div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Panier moyen</h3>
-            <p className="text-2xl font-bold">{stats.averageTicket.toLocaleString()} €</p>
-            <div className="mt-2 text-sm text-green-600">+4% par rapport au mois dernier</div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Livraisons en attente</h3>
-            <p className="text-2xl font-bold">{stats.pendingDeliveries}</p>
-            <div className="mt-2 text-sm text-orange-500">2 en retard</div>
-          </div>
+          <div className="bg-white p-4 rounded-lg shadow flex flex-col justify-between">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Montant total des ventes</h3>
+          <p className="text-xl font-bold text-blue-600">
+            {totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'MGA' })}
+          </p>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow flex flex-col justify-between">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Nombre de transactions</h3>
+          <p className="text-xl font-bold text-green-600">{sellingHistoryData.length} Transactions</p>
+        </div>
+                
+        <div className="bg-white p-4 rounded-lg shadow flex flex-col justify-between">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Nombre de bouteilles vendues</h3>
+          <p className="text-xl font-bold text-green-600">{totalBottlesSold} Bouteilles</p>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow flex flex-col justify-between">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Produit le plus vendu</h3>
+          <p className="text-xl font-bold text-purple-600">{produitsLesPlusVendus[0]?.product}</p>
+          <p className="text-sm text-gray-500">{produitsLesPlusVendus[0]?.quantity} unités</p>
+        </div>
         </div>
         
         {/* Charts section */}
@@ -168,7 +256,7 @@ export default function SellingStat() {
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Évolution des ventes</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={sampleSalesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={monthlySalesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
@@ -184,7 +272,7 @@ export default function SellingStat() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={sampleProductData}
+                  data={pieChartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -193,7 +281,7 @@ export default function SellingStat() {
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
-                  {sampleProductData.map((entry, index) => (
+                  {pieChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -211,7 +299,7 @@ export default function SellingStat() {
             <h2 className="text-lg font-semibold mb-4">Performance des produits</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
-                data={sampleProductData}
+                data={barChartData}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
@@ -219,7 +307,7 @@ export default function SellingStat() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="value" name="Part des ventes (%)" fill="#8884d8" />
+                <Bar dataKey="value" name="Part des ventes (MGA)" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
           </div>

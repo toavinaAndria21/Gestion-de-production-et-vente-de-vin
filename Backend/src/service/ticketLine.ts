@@ -58,5 +58,37 @@ export class TicketLineService {
       throw new Error("Impossible de récupérer les lignes du ticket.");
     }
   }
+   static async sellingHistory() {
+    try {
+      return await prisma.ticketLine.findMany({
+        include: {
+          ticket: {
+            select: {
+              createdAt: true
+            }
+          },
+          product: {
+            select: {
+              label: true,
+              price: true,
+              vintage: {
+                select: {
+                  label: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          ticket: {
+            createdAt: 'desc'
+          }
+        }
+      });     
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'historique des ventes :", error);
+      throw new Error("Impossible de récupérer l'historique des ventes.");  
+    }
+  }
 
 }

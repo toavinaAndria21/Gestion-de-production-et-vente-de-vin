@@ -31,12 +31,13 @@ export class IngredientController {
     static async updateIngredient(req: Request, res: Response) {
         try {
             const { ingredientId } = req.params;
-            const { productorId, label, quantity, threshold, provider } = req.body;
+            const { productorId, label, quantity, threshold, provider, unit } = req.body;
             const updatedIngredient = {
                 productorId,
                 label,
                 quantity,
                 threshold,
+                unit,
                 provider
             };
             const ingredient = await IngredientService.update(parseInt(ingredientId), updatedIngredient);
