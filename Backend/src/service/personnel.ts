@@ -7,9 +7,16 @@ export class personnelService {
     }
 
     static async create(data:NewUser) {
+        const existing = await prisma.personnel.findUnique({
+            where: { personnelId: data.personnelId },
+          });
+          
+          if (existing) {
+            throw new Error("Un utilisateur avec ce CIN existe déjà");
+          }
         return await prisma.personnel.create({
             data:{
-                personnelId: data.cin,
+                personnelId: data.personnelId,
                 name: data.name,
                 lastName: data.lastName,
                 email: data.email,
@@ -96,4 +103,20 @@ export class personnelService {
         });
         return user?.role;
     }
+
+    static async disable(cin: string) {
+        const existing = await prisma.personnel.findUnique({
+            where: { personnelId: cin },
+          });
+          
+          if (!existing) {
+            throw new Error("Aucun utilisateur trouvé avec ce CIN");
+          }
+
+        return await prisma.personnel.update({
+          where: { personnelId: cin },
+          data: { status: 'Inactif' },
+        });
+      }
+      
 }

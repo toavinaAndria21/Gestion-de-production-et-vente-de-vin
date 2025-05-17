@@ -15,7 +15,7 @@ export default function Selling() {
     const [filteredWines, setFilteredWines] = useState([]);
     const [wineList, setWineList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const { showSuccess, showError, showAlert } = useToast();
+    const { showSucces, showError, showAlert } = useToast();
 
     const getAllWines = async () => {
       try {
@@ -152,7 +152,7 @@ export default function Selling() {
         if (response.ok) {
           const data = await response.json();
           getAllWines();
-          showSuccess("Vente enregistrée avec succès");
+          showSucces("Vente enregistrée avec succès");
         } else {
           console.error("Erreur lors de l'enregistrement de la vente", response.statusText);
           showError("Erreur lors de l'enregistrement de la vente")
