@@ -59,7 +59,7 @@ export default function Personnel() {
               <button
                 className="px-2 py-1 text-xs text-blue-600 border border-blue-500 rounded hover:bg-blue-50"
                 onClick={() => {
-                    setEditData(item); // mode modification
+                    setEditData(item);
                     setSelectedPersonnel(item.personnelId)
                     setIsModalOpen(true);
                   }}
@@ -316,7 +316,7 @@ function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
           role: initialData.role || "",
         });
       } else {
-        // mode création : on réinitialise le formulaire
+        // mode création 
         setForm({
           personnelId: "",
           name: "",

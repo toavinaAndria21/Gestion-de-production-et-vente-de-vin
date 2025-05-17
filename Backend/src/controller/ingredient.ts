@@ -3,13 +3,14 @@ import { Request, Response } from "express";
 export class IngredientController {
     static async createIngredient(req: Request, res: Response) {
         try {
-            const { productorId, label, quantity, threshold, provider } = req.body;
+            const { productorId, label, quantity, threshold, provider, unit } = req.body;
             const newIngredient = {
                 productorId,
                 label,
                 quantity,
                 threshold,
-                provider
+                provider,
+                unit
             };
             const ingredient = await IngredientService.create(newIngredient);
             res.status(201).json({ message: "Ingredient crée avec succes", data: ingredient });
