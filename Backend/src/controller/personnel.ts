@@ -52,11 +52,14 @@ export class personnelController {
             message: "Utilisateur mis à jour avec succès",
             data: updatedUser,
           });
-        } catch (error) {
-          res.status(500).json({
-            message: "Une erreur est survenue lors de la mise à jour de l'utilisateur",
-            error: error instanceof Error ? error.message : String(error),
-          });
+        } catch (error) { 
+            if (error instanceof Error && error.message === "Aucun utilisateur trouvé avec ce CIN") {
+                res.status(404).json({message: "Aucun utilisateur trouvé avec ce CIN"});
+            } else {
+                res.status(500).json({
+                message: "Une erreur est survenue lors de la mise à jour de l'utilisateur",
+                error: error instanceof Error ? error.message : String(error)});
+            }
         }
       }
     

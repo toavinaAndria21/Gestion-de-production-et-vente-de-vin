@@ -35,6 +35,13 @@ export class personnelService {
     }
 
     static async update(cin:string, data:Partial<NewUser>) {
+        const existing = await prisma.personnel.findUnique({
+            where: { personnelId: cin },
+          });
+          
+          if (!existing) {
+            throw new Error("Aucun utilisateur trouvé avec ce CIN");
+          }
         return await prisma.personnel.update({
             where: {
                 personnelId: cin,

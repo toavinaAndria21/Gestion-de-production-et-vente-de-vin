@@ -1,12 +1,9 @@
 import { createContext, useState, useContext } from 'react';
 import '../css/toast.css'
 
-// Création du contexte pour les toasts
 const ToastContext = createContext();
 
-// Composant Toast qui affiche le message
 const Toast = ({ message, type, onClose }) => {
-  // Déterminer la couleur du toast en fonction du type
   const getToastStyles = () => {
     switch (type) {
       case 'success':
@@ -43,12 +40,12 @@ export const ToastProvider = ({ children }) => {
   };
 
   // Fonctions pratiques pour différents types de toasts
-  const showSuccess = (message) => showToast(message, 'success');
+  const showSucces = (message) => showToast(message, 'success');
   const showError = (message) => showToast(message, 'error');
   const showAlert = (message) => showToast(message, 'alert');
 
   return (
-    <ToastContext.Provider value={{ showToast, showSuccess, showError, showAlert }}>
+    <ToastContext.Provider value={{ showToast, showSucces, showError, showAlert }}>
       {children}
       
       {/* Afficher les toasts actifs */}

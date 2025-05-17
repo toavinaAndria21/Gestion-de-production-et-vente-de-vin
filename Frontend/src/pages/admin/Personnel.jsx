@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import SearchInput from "../../components/searchInput";
 import DataTable from "../../components/DataTable";
 import ConfirmDeleteModal from "../../components/confirmDeleteModal";
-import { X } from "lucide-react";
+import { ShieldAlert, X } from "lucide-react";
+import { useToast } from "../../context/toastContext";
 export default function Personnel() {
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +13,7 @@ export default function Personnel() {
     const [editData, setEditData] = useState(null);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [personToDelete, setPersonToDelete] = useState(null);
+    const { showSucces, showError, showAlert } = useToast();
 
 
     const columns = [
@@ -71,34 +73,21 @@ export default function Personnel() {
         },
       ];
      
+      const getUsersList = async () => {
+        const response = await fetch("http://localhost:4000/personnel");
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des données");
+        }
+        const data = await response.json();
+        console.log(data);
+        setData(data);
+        setFilteredData(data);
+      };
+
       useEffect(()=>{
-        const jsonData = [
-            {
-              personnelId: "p1",
-              name: "Jean",
-              lastName: "Dupont",
-              email: "jean.dupont@example.com",
-              role: "ADMIN",
-              createdAt: "2024-11-10T09:20:30.000Z",
-            },
-            {
-              personnelId: "p2",
-              name: "Claire",
-              lastName: "Moreau",
-              email: "claire.moreau@example.com",
-              role: "CUISINIER",
-              createdAt: "2025-01-05T14:45:00.000Z",
-            },
-            {
-              personnelId: "p3",
-              name: "Lucas",
-              lastName: "Bernard",
-              email: "lucas.bernard@example.com",
-              role: "SERVEUR",
-              createdAt: "2025-02-18T08:00:00.000Z",
-            }
-          ];
-        setData(jsonData)
+        
+        getUsersList();
+        
       },[])
 
       useEffect(()=>{
@@ -129,6 +118,65 @@ export default function Personnel() {
         setPersonToDelete(null);
       };
       
+      const handleCreatePersonnel = async (newData) => {
+        console.log(newData);
+        // try {
+        //   const res = await fetch("http://localhost:4000/personnel", {
+        //     method: "POST",
+        //     headers: {
+        //       "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify(newData),
+        //   });
+      
+        //   if (!res.ok) throw new Error("Échec de la création");
+      
+        //   const created = await res.json();
+        //   setData((prev) => [...prev, created]);
+        //   setIsModalOpen(false);
+        // } catch (error) {
+        //   console.error("Erreur lors de la création :", error);
+        //   alert("Une erreur est survenue lors de la création.");
+        // }
+      };
+      
+      const handleUpdatePersonnel = async (newData) => {
+        try {
+          const res = await fetch(`http://localhost:4000/personnel/update/${newData.personnelId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(newData),
+          });
+          console.log("Réponse brute :", res);
+      
+          if (res.status === 500) {
+            showError("Échec de la mise à jour");
+            return;
+          }
+          
+          if (res.status === 404) {
+            ShieldAlert("Utilisateur introuvable");
+            return;
+          }
+      
+          const { data: updated } = await res.json();
+          setData((prev) =>
+            prev.map((item) =>
+              item.personnelId === updated.personnelId ? updated : item
+            )
+          );
+          showSucces("Utilisateur modifié avec succès");
+          setIsModalOpen(false);
+
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour :", error);
+          showError("Une erreur est survenue lors de la modification.");
+        }
+      };
+      
+
     return(
         <>
         <div className="w-full p-2 flex flex-col gap-3">
@@ -150,24 +198,12 @@ export default function Personnel() {
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             initialData={editData}
-            onSave={(newData) => {
-                if (editData) {
-                // modification
-                setData((prev) =>
-                    prev.map((item) =>
-                    item.personnelId === newData.personnelId ? newData : item
-                    )
-                );
-                } else {
-                // création
-                const newPersonnel = {
-                    ...newData,
-                    personnelId: `p${data.length + 1}`,
-                    createdAt: new Date().toISOString(),
-                };
-                setData((prev) => [...prev, newPersonnel]);
-                }
-                setIsModalOpen(false);
+            onSave={async (newData) => {
+              if (editData) {
+                await handleUpdatePersonnel(newData);
+              } else {
+                await handleCreatePersonnel(newData);
+              }
             }}
         />
         <ConfirmDeleteModal
@@ -181,25 +217,47 @@ export default function Personnel() {
 }
 
 function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
+
     const [form, setForm] = useState({
       personnelId: "",
       name: "",
       lastName: "",
       email: "",
-      role: "SERVEUR",
+      role: "",
     });
-  
+
+    const resetForm = () => {
+      setForm({
+        personnelId: "",
+        name: "",
+        lastName: "",
+        email: "",
+        role: "",
+      });
+    };
+    
     useEffect(() => {
-      if (initialData) {
+      if (initialData && Object.keys(initialData).length > 0) {
+        // mode modification
         setForm({
           personnelId: initialData.personnelId || "",
           name: initialData.name || "",
           lastName: initialData.lastName || "",
           email: initialData.email || "",
-          role: initialData.role || "SERVEUR",
+          role: initialData.role || "",
+        });
+      } else {
+        // mode création : on réinitialise le formulaire
+        setForm({
+          personnelId: "",
+          name: "",
+          lastName: "",
+          email: "",
+          role: "",
         });
       }
     }, [initialData]);
+    
   
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -208,16 +266,20 @@ function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
   
     const handleSubmit = () => {
       onSave(form);
+      resetForm();
       onClose();
     };
   
     if (!isOpen) return null;
-  
+   
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-xl relative">
             <button
-              onClick={onClose}
+              onClick={()=>{
+                onClose();
+                resetForm();
+              }}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
               aria-label="Fermer"
             >
@@ -229,6 +291,32 @@ function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
             </h2>
       
             <div className="space-y-5">
+            <div>
+                <label 
+                  htmlFor="personnelId" 
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  CIN
+                </label>
+                <input
+                  id="personnelId"
+                  type="text"
+                  minLength={12}
+                  maxLength={12}
+                  pattern="\d*"
+                  name="personnelId"
+                  placeholder="Entrez le CIN"
+                  value={form.personnelId}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // N'accepter que les chiffres
+                    if (/^\d*$/.test(value)) {
+                      setForm((prev) => ({ ...prev, personnelId: value }));
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-800/30 focus:outline-none transition-all"
+                />
+              </div>
               <div>
                 <label 
                   htmlFor="name" 
@@ -298,15 +386,17 @@ function PersonnelModal({ isOpen, onClose, onSave, initialData = {} }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-800/30 focus:outline-none transition-all"
                 >
                   <option value="">Sélectionnez un rôle</option>
-                  <option value="admin">Admin</option>
-                  <option value="producteur">Producteur</option>
-                  <option value="vendeur">Vendeur</option>
+                  <option value="Administrateur">Admin</option>
+                  <option value="Producteur">Producteur</option>
+                  <option value="Vendeur">Vendeur</option>
                 </select>
               </div>
       
               <div className="flex justify-end gap-3 mt-6">
                 <button 
-                  onClick={onClose} 
+                  onClick={() => {
+                    onClose();
+                  }} 
                   className="px-4 py-2 border border-gray-400 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Annuler
