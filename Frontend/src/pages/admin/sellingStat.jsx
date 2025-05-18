@@ -195,7 +195,7 @@ export default function SellingStat() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value)} />
+                <Tooltip formatter={(value) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MGA' }).format(value)} />
                 <Legend />
                 <Line type="monotone" dataKey="monthlySales" name="Ventes mensuelles" stroke="#0088FE" strokeWidth={2} />
               </LineChart>

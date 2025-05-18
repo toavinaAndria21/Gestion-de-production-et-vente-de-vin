@@ -6,6 +6,7 @@ export default function SellingHistory() {
   const [historyData, setHistoryData] = useState([]);
   const historyColumns = [
     { key: "date", label: "Date" },
+    { key: "seller", label: "Vendeur" },
     { key: "product", label: "Produit" },
     { key: "vintage", label: "Millésime" },
     { key: "quantity", label: "Quantité" },
@@ -25,11 +26,18 @@ export default function SellingHistory() {
         const unitPrice = parseFloat(sale.product.price); 
   
         return {
-          date: sale.ticket.createdAt,
+          date: new Date(sale.ticket.createdAt).toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),          
           product: sale.product.label,
           vintage: sale.product.vintage.label,
           quantity: sale.quantity,
           price: unitPrice,
+          seller: `${sale.ticket.seller.name} ${sale.ticket.seller.lastName}`,
           total: unitPrice * sale.quantity,
         };
       });
