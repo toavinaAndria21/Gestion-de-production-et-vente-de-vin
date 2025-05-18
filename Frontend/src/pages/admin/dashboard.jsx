@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../../components/statCard';
+import { API_URL } from '../../config/api';
+import '../../css/scrollBar.css'
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar
@@ -17,49 +19,9 @@ import {
   Filter
 } from 'lucide-react';
 
-// Données fictives pour la démonstration
-const salesData = [
-  { name: 'Jan', ventes: 65 },
-  { name: 'Fév', ventes: 59 },
-  { name: 'Mar', ventes: 80 },
-  { name: 'Avr', ventes: 81 },
-  { name: 'Mai', ventes: 56 },
-  { name: 'Juin', ventes: 55 },
-  { name: 'Juil', ventes: 40 }
-];
-
-const wineTypeData = [
-  { name: 'Rouge', value: 55 },
-  { name: 'Blanc', value: 30 },
-  { name: 'Rosé', value: 15 }
-];
-
-const productionData = [
-  { name: 'Jan', production: 42 },
-  { name: 'Fév', production: 28 },
-  { name: 'Mar', production: 30 },
-  { name: 'Avr', production: 33 },
-  { name: 'Mai', production: 37 },
-  { name: 'Juin', production: 29 },
-  { name: 'Juil', production: 25 }
-];
-
-const stocksByCategory = [
-  { name: 'Bordeaux', stockValue: 25400, quantity: 423 },
-  { name: 'Bourgogne', stockValue: 31200, quantity: 246 },
-  { name: 'Loire', stockValue: 12800, quantity: 182 },
-  { name: 'Rhône', stockValue: 18600, quantity: 305 },
-  { name: 'Champagne', stockValue: 22000, quantity: 127 }
-];
 
 const COLORS = ['#B91C1C', '#F3F4F6', '#EC4899'];
 
-const recentActivities = [
-  { id: 1, type: 'vente', user: 'Jean Dupont', description: 'A vendu 12 bouteilles de Château Margaux 2015', time: 'Il y a 2h' },
-  { id: 2, type: 'production', user: 'Marie Cuvier', description: 'A mis en bouteille la cuvée Merlot 2023', time: 'Il y a 3h' },
-  { id: 3, type: 'stock', user: 'Paul Martin', description: 'A ajouté 48 bouteilles de Chablis Grand Cru', time: 'Il y a 5h' },
-  { id: 4, type: 'vente', user: 'Lucie Bernard', description: 'A vendu 6 bouteilles de Côtes du Rhône 2020', time: 'Il y a 8h' }
-];
 
 const lowStockWines = [
   { id: 1, name: "Château Margaux 2015", stock: 3, category: "Bordeaux" },
@@ -67,47 +29,243 @@ const lowStockWines = [
   { id: 3, name: "Côtes de Provence 2020", stock: 4, category: "Provence" }
 ];
 
-const statsData = [
-    {
-      title: "Ventes totales (€)",
-      value: "68,459",
-      change: "+12.5% depuis le mois dernier",
-      trend: "positive",
-      icon: <TrendingUp size={24} />,
-      iconBg: "bg-red-50",
-      iconColor: "text-red-800",
-    },
-    {
-      title: "Bouteilles vendues",
-      value: "1,245",
-      change: "+8.3% depuis le mois dernier",
-      trend: "positive",
-      icon: <ShoppingBag size={24} />,
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-800",
-    },
-    {
-      title: "Bouteilles en stock",
-      value: "12,876",
-      change: "+2.7% depuis le mois dernier",
-      trend: "positive",
-      icon: <Package size={24} />,
-      iconBg: "bg-purple-50",
-      iconColor: "text-purple-800",
-    },
-    {
-      title: "Utilisateurs actifs",
-      value: "24",
-      change: "Sur un total de 28 utilisateurs",
-      trend: null, // pas de flèche
-      icon: <Users size={24} />,
-      iconBg: "bg-green-50",
-      iconColor: "text-green-800",
-    },
-  ];
 const Dashboard = () => {
   const [timePeriod, setTimePeriod] = useState('mois');
+  const [sellingHistoryData, setSellingHistoryData] = useState([]);
+  const [totalBottlesSold, setTotalBottlesSold] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalStock, setTotalStock] = useState(0);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const [monthlySalesData, setMonthlySalesData] = useState([]);
+  const [productionData, setProductionData] = useState([]);
+  const [wineTypeData, setWineTypeData] = useState([]);
+  const [stocksByCategory, setStocksByCategory] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [lowStockWines, setLowStockWines] = useState([]);
+
+
+  const getSellingStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/ticketLine/history`);
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération de l'historique des ventes");
+      }
   
+      const res = await response.json();
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+  
+      const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      const monthlySalesMap = Array(12).fill(0);
+      const wineTypeMap = {};
+  
+      const fullSales = res.data.map((sale) => {
+        const unitPrice = parseFloat(sale.product.price);
+        const saleDate = new Date(sale.ticket.createdAt);
+        const monthIndex = saleDate.getMonth();
+        const wineType = sale.product.type;
+      
+        monthlySalesMap[monthIndex] += sale.quantity;
+        wineTypeMap[wineType] = (wineTypeMap[wineType] || 0) + sale.quantity;
+      
+        return {
+          date: saleDate,
+          quantity: sale.quantity,
+          price: unitPrice,
+          total: unitPrice * sale.quantity,
+          product: sale.product, 
+          ticket: sale.ticket,      
+        };
+      });
+      
+  
+      const salesData = monthNames.map((name, index) => ({
+        name,
+        ventes: monthlySalesMap[index],
+      }));
+      setMonthlySalesData(salesData);
+  
+      const wineTypeData = Object.entries(wineTypeMap).map(([type, value]) => ({
+        name: type,
+        value,
+      }));
+      setWineTypeData(wineTypeData);
+
+      const filteredData = fullSales.filter(
+        (sale) =>
+          sale.date.getMonth() === currentMonth &&
+          sale.date.getFullYear() === currentYear
+      );
+      setSellingHistoryData(filteredData);
+  
+      const totalBottlesSold = filteredData.reduce((acc, sale) => acc + sale.quantity, 0);
+      setTotalBottlesSold(totalBottlesSold);
+  
+      const amount = filteredData.reduce((acc, sale) => acc + sale.total, 0);
+      setTotalAmount(amount);
+  
+      // Génération des 5 dernières activités
+      const recentActivities = fullSales
+        .sort((a, b) => b.date - a.date)
+        .slice(0, 5)
+        .map((sale, index) => {
+          const diffHours = Math.floor((now - sale.date) / (1000 * 60 * 60));
+          return {
+            id: index + 1,
+            type: 'vente',
+            user: `${sale.ticket.seller.name} ${sale.ticket.seller.lastName}`, // Remplace par un champ réel si disponible
+            description: `A vendu ${sale.quantity} bouteille(s) de ${sale.product.label}.`,
+            time: `Il y a ${diffHours}h`,
+          };
+        });
+      setRecentActivities(recentActivities);
+  
+    } catch (error) {
+      console.error("Erreur:", error);
+    }
+  };
+  
+  
+  const getProductStock = async () => {
+    try {
+      const response = await fetch(`${API_URL}/product`);
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des produits");
+      }
+  
+      const data = await response.json();
+  
+      // Total stock
+      const total = data.reduce((acc, product) => acc + product.stock, 0);
+      setTotalStock(total);
+  
+      // --- Production par mois ---
+      const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      const monthlyProductionMap = Array(12).fill(0);
+  
+      data.forEach((product) => {
+        const createdDate = new Date(product.createdAt);
+        const monthIndex = createdDate.getMonth();
+        monthlyProductionMap[monthIndex] += 1;
+      });
+  
+      const productionData = monthNames.map((name, index) => ({
+        name,
+        production: monthlyProductionMap[index],
+      }));
+      setProductionData(productionData);
+  
+      // --- Stock par catégorie ---
+      const categoryMap = new Map();
+  
+      data.forEach((product) => {
+        const category = product.category;
+        const quality = product.vintage?.quality || "Inconnu";
+        const stock = product.stock;
+        const price = parseFloat(product.price);
+  
+        const key = `${category}-${quality}`;
+  
+        if (!categoryMap.has(key)) {
+          categoryMap.set(key, {
+            name: category,
+            quantity: 0,
+            stockValue: 0,
+            quality: quality,
+          });
+        }
+  
+        const entry = categoryMap.get(key);
+        entry.quantity += stock;
+        entry.stockValue += price * stock;
+      });
+  
+      const stocksByCategory = Array.from(categoryMap.values());
+      setStocksByCategory(stocksByCategory);
+
+      //Produits avec un stock faible ---
+      const lowStockWines = data
+      .filter(product => product.stock < 5)
+      .map(product => ({
+        id: product.productId,
+        name: `${product.label} ${product.vintage?.label || ''}`.trim(),
+        stock: product.stock,
+        category: product.category,
+      }));
+
+      setLowStockWines(lowStockWines); // À condition que tu aies créé ce state
+
+  
+    } catch (error) {
+      console.error("Erreur:", error);
+    }
+  };
+  
+
+    const getAllUsers = async () => {
+      try {
+        const response = await fetch(`${API_URL}/personnel`);
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des utilisateurs");
+        }
+        const data = await response.json();
+        const total = data.length;
+        const active = data.filter(user => user.status === "Actif").length;
+
+        setTotalUsersCount(total);
+        setActiveUsersCount(active);
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    }
+    const statsData = [
+      {
+        title: "Ventes totales",
+        value: totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'MGA' }),
+        change:  "Chiffre d’affaires du mois en cours",
+        trend: "positive",
+        icon: <TrendingUp size={24} />,
+        iconBg: "bg-red-50",
+        iconColor: "text-red-800",
+      },
+      {
+        title: "Bouteilles vendues",
+        value: totalBottlesSold,
+        change: `Durant les 30 derniers jours`,
+        trend: "positive",
+        icon: <ShoppingBag size={24} />,
+        iconBg: "bg-blue-50",
+        iconColor: "text-blue-800",
+      },
+      {
+        title: "Bouteilles en stock",
+        value: totalStock,
+        change: "Stock disponible actuellement",
+        trend: "positive",
+        icon: <Package size={24} />,
+        iconBg: "bg-purple-50",
+        iconColor: "text-purple-800",
+      },
+      {
+        title: "Utilisateurs actifs",
+        value: activeUsersCount,
+        change: `Sur un total de ${totalUsersCount} utilisateurs`,
+        trend: null,
+        icon: <Users size={24} />,
+        iconBg: "bg-green-50",
+        iconColor: "text-green-800",
+      },
+    ];
+    useEffect(() => {
+
+      getSellingStats();
+      getProductStock();
+      getAllUsers();
+    }
+    , []);
+
   return (
     <div className="px-6 py-4">
       {/* En-tête du dashboard */}
@@ -165,7 +323,7 @@ const Dashboard = () => {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData}>
+              <LineChart data={monthlySalesData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
@@ -214,7 +372,7 @@ const Dashboard = () => {
             </a>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollable">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -222,13 +380,13 @@ const Dashboard = () => {
                     Catégorie
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Qualité
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Quantité
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Valeur (€)
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
                   </th>
                 </tr>
               </thead>
@@ -239,15 +397,13 @@ const Dashboard = () => {
                       <div className="text-sm font-medium text-gray-900">{item.name}</div>
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{item.quality}</div>
+                    </td>
+                    <td className="px-3 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-700">{item.quantity} bouteilles</div>
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-700">{item.stockValue.toLocaleString()} €</div>
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-right">
-                      <button className="text-red-800 hover:text-red-600 font-medium text-sm">
-                        Détails
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -276,7 +432,7 @@ const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`${value}%`, 'Pourcentage']} />
+                <Tooltip formatter={(value) => [`${value}`, 'Bouteilles']} />
                 <Legend 
                   layout="vertical" 
                   verticalAlign="middle" 
@@ -296,10 +452,10 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-gray-800">Activités récentes</h3>
-            <button className="text-sm text-red-800 font-medium hover:underline">
-              Voir tout
-            </button>
-          </div>
+              <a href="/admin/selling/history" className="text-sm text-red-800 font-medium hover:underline">
+                Voir tout
+              </a>
+            </div>
           
           <div className="space-y-4">
             {recentActivities.map((activity) => (
@@ -326,7 +482,7 @@ const Dashboard = () => {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100">
+        <div className="bg-white rounded-lg shadow-sm p-5 border border-gray-100 overflow-y-auto scrollable">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
               <AlertCircle className="text-red-600 mr-2" size={18} />
@@ -349,8 +505,8 @@ const Dashboard = () => {
                     <span className="text-red-600 font-bold mr-4">
                       {wine.stock} en stock
                     </span>
-                    <button className="bg-white border border-red-200 text-red-800 hover:bg-red-50 text-sm px-3 py-1 rounded">
-                      Commander
+                    <button className="bg-white border border-red-200 text-red-800 hover:bg-green-100 text-sm px-3 py-1 rounded">
+                      Notifier le producteur
                     </button>
                   </div>
                 </div>

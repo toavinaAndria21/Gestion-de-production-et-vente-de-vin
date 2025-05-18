@@ -64,13 +64,20 @@ export class TicketLineService {
         include: {
           ticket: {
             select: {
-              createdAt: true
+              createdAt: true,
+              seller:{
+                select: {
+                  name: true,
+                  lastName: true
+                }
+              }
             }
           },
           product: {
             select: {
               label: true,
               price: true,
+              type: true,
               vintage: {
                 select: {
                   label: true
