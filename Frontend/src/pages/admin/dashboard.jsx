@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../../components/statCard';
+import { API_URL } from '../../config/api';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar
@@ -67,47 +68,137 @@ const lowStockWines = [
   { id: 3, name: "Côtes de Provence 2020", stock: 4, category: "Provence" }
 ];
 
-const statsData = [
-    {
-      title: "Ventes totales (€)",
-      value: "68,459",
-      change: "+12.5% depuis le mois dernier",
-      trend: "positive",
-      icon: <TrendingUp size={24} />,
-      iconBg: "bg-red-50",
-      iconColor: "text-red-800",
-    },
-    {
-      title: "Bouteilles vendues",
-      value: "1,245",
-      change: "+8.3% depuis le mois dernier",
-      trend: "positive",
-      icon: <ShoppingBag size={24} />,
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-800",
-    },
-    {
-      title: "Bouteilles en stock",
-      value: "12,876",
-      change: "+2.7% depuis le mois dernier",
-      trend: "positive",
-      icon: <Package size={24} />,
-      iconBg: "bg-purple-50",
-      iconColor: "text-purple-800",
-    },
-    {
-      title: "Utilisateurs actifs",
-      value: "24",
-      change: "Sur un total de 28 utilisateurs",
-      trend: null, // pas de flèche
-      icon: <Users size={24} />,
-      iconBg: "bg-green-50",
-      iconColor: "text-green-800",
-    },
-  ];
 const Dashboard = () => {
   const [timePeriod, setTimePeriod] = useState('mois');
+  const [sellingHistoryData, setSellingHistoryData] = useState([]);
+  const [totalBottlesSold, setTotalBottlesSold] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalStock, setTotalStock] = useState(0);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
   
+  const getSellingStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/ticketLine/history`);
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération de l'historique des ventes");
+      }
+  
+      const res = await response.json();
+      const now = new Date();
+      const currentMonth = now.getMonth(); // Mois actuel (0-11)
+      const currentYear = now.getFullYear();
+  
+      const data = res.data.map((sale) => {
+        const unitPrice = parseFloat(sale.product.price);
+        const saleDate = new Date(sale.ticket.createdAt);
+  
+        return {
+          date: saleDate,
+          product: sale.product.label,
+          vintage: sale.product.vintage.label,
+          quantity: sale.quantity,
+          price: unitPrice,
+          total: unitPrice * sale.quantity,
+        };
+      });
+  
+      // ⏳ Filtrer uniquement les ventes du mois en cours
+      const filteredData = data.filter(
+        (sale) => sale.date.getMonth() === currentMonth && sale.date.getFullYear() === currentYear
+      );
+  
+      setSellingHistoryData(filteredData);
+  
+      const totalBottlesSold = filteredData.reduce((acc, sale) => acc + sale.quantity, 0);
+      setTotalBottlesSold(totalBottlesSold);
+  
+      const amount = filteredData.reduce((acc, sale) => acc + sale.total, 0);
+      setTotalAmount(amount);
+    } catch (error) {
+      console.error("Erreur:", error);
+    }
+  };
+  
+    const getProductStock = async () => {
+      try {
+        const response = await fetch(`${API_URL}/product`);
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des produits");
+        }
+    
+        const data = await response.json();
+    
+        // Totaliser tous les stocks
+        const total = data.reduce((acc, product) => acc + product.stock, 0);
+        setTotalStock(total);
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    };
+
+    const getAllUsers = async () => {
+      try {
+        const response = await fetch(`${API_URL}/personnel`);
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des utilisateurs");
+        }
+        const data = await response.json();
+        const total = data.length;
+        const active = data.filter(user => user.status === "Actif").length;
+
+        setTotalUsersCount(total);
+        setActiveUsersCount(active);
+      } catch (error) {
+        console.error("Erreur:", error);
+      }
+    }
+    const statsData = [
+      {
+        title: "Ventes totales",
+        value: totalAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'MGA' }),
+        change:  "Chiffre d’affaires du mois en cours",
+        trend: "positive",
+        icon: <TrendingUp size={24} />,
+        iconBg: "bg-red-50",
+        iconColor: "text-red-800",
+      },
+      {
+        title: "Bouteilles vendues",
+        value: totalBottlesSold,
+        change: `Durant les 30 derniers jours`,
+        trend: "positive",
+        icon: <ShoppingBag size={24} />,
+        iconBg: "bg-blue-50",
+        iconColor: "text-blue-800",
+      },
+      {
+        title: "Bouteilles en stock",
+        value: totalStock,
+        change: "Stock disponible actuellement",
+        trend: "positive",
+        icon: <Package size={24} />,
+        iconBg: "bg-purple-50",
+        iconColor: "text-purple-800",
+      },
+      {
+        title: "Utilisateurs actifs",
+        value: activeUsersCount,
+        change: `Sur un total de ${totalUsersCount} utilisateurs`,
+        trend: null,
+        icon: <Users size={24} />,
+        iconBg: "bg-green-50",
+        iconColor: "text-green-800",
+      },
+    ];
+    useEffect(() => {
+
+      getSellingStats();
+      getProductStock();
+      getAllUsers();
+    }
+    , []);
+
   return (
     <div className="px-6 py-4">
       {/* En-tête du dashboard */}
