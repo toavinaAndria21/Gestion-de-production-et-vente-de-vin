@@ -8,10 +8,9 @@ export default function ProductorLayout() {
   const { user } = useContext(AuthContext);
   const menu = [
     { name: "Ingrédients", path: "/productor/ingredients", icon: <Component size={18} /> },
-    { name: "Étapes de vinification", path: "/productor/steps", icon: <List size={18} /> },
-    { name: "Cuvées de vins", path: "/productor/vintage", icon: <List size={18} /> },
-    { name: "Mise en bouteilles", path: "/productor/bottling", icon: <List size={18} /> },
-    { name: "Rapports", path: "/productor/reports", icon: <Users size={18} /> },
+    { name: "Étapes de vinification", path: "/productor/steps", icon: <Component size={18} /> },
+    { name: "Cuvées de vins", path: "/productor/vintage", icon: <Component size={18} /> },
+    { name: "Mise en bouteilles", path: "/productor/bottling", icon: <Component size={18} /> },
   ];
 
   return (
