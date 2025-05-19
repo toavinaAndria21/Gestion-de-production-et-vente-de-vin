@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import { personnelService } from '../service/personnel';
+import bcrypt from 'bcrypt';
 
 export class personnelController {
+
+  
     static async getAllPersonnel(req:Request, res:Response){
         try {
             const personnel = await personnelService.getAll()
@@ -23,7 +26,7 @@ export class personnelController {
                 res.status(400).json({ message: 'Tous les champs sont obligatoires' });
                 return;
             }else {
-                const password = personnelId;
+                const password = await bcrypt.hash(personnelId, 10);
                 const newUser = await personnelService.create({ personnelId, name, lastName, email, password, role });
                 res.status(201).json(newUser);
             }
@@ -39,10 +42,22 @@ export class personnelController {
     static async login(req:Request, res:Response){
         try {
             const { email, password } = req.body;
-            const user = await personnelService.login(email, password);
-            res.status(200).json(user);
+            const result = await personnelService.login(email, password);
+
+            res.status(200).json({
+                message: 'Connexion réussie',
+                user: result.user,
+                token: result.token,
+            });
         } catch (error) {
-            res.status(401).json({ message: 'Informations invalides' });
+
+            if (error instanceof Error && error.message === "User not found") {
+                res.status(404).json({ message: 'Utilisateur non trouvé' });
+            } else if (error instanceof Error && error.message === "Invalid password") {
+                res.status(401).json({ message: 'Mot de passe invalide' });
+            } else {
+                res.status(500).json({ message: 'Une erreur est survenue lors de la connexion' });
+            }
         }
     }
 

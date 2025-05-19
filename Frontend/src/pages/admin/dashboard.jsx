@@ -278,24 +278,6 @@ const Dashboard = () => {
         </div>
         
         <div className="flex mt-4 md:mt-0 gap-3">
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm flex items-center px-4 py-2">
-            <Calendar className="text-gray-400 mr-2" size={18} />
-            <select 
-              className="bg-transparent focus:outline-none text-gray-600"
-              value={timePeriod}
-              onChange={(e) => setTimePeriod(e.target.value)}
-            >
-              <option value="jour">Aujourd'hui</option>
-              <option value="semaine">Cette semaine</option>
-              <option value="mois">Ce mois</option>
-              <option value="annee">Cette année</option>
-            </select>
-          </div>
-          
-          <button className="bg-white border border-gray-200 rounded-lg shadow-sm flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50">
-            <Filter size={18} className="mr-2" />
-            Filtres
-          </button>
           
           <button className="bg-red-800 text-white rounded-lg shadow-sm flex items-center px-4 py-2 hover:bg-red-700">
             <Download size={18} className="mr-2" />
