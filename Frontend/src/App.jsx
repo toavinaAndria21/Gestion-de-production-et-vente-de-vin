@@ -1,4 +1,5 @@
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
+
 import SellerLayout from "./layouts/seller";
 import sellerRoute from "./routes/seller";
 import AdminLayout from "./layouts/admin";
@@ -17,20 +18,19 @@ const router = createBrowserRouter([
   },
   {
     path: '/seller',
-    element: <SellerLayout/>,
-    children: sellerRoute
+    element: <SellerLayout />,
+    children: sellerRoute,
   },
   {
-    path:'/admin',
-    element:<AdminLayout/>,
-    children: adminRoute
+    path: '/admin',
+    element: <AdminLayout />,
+    children: adminRoute,
   },
   {
     path: '/productor',
-    element: <ProductorLayout/>,
-    children: productorRoute
+    element: <ProductorLayout />,
+    children: productorRoute,
   }
-
 ]);
 
 function App() {
@@ -44,6 +44,5 @@ function App() {
     </AuthProvider>
   )
 }
-  
-  export default App;
-  
+
+export default App;

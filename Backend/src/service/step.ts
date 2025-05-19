@@ -18,15 +18,15 @@ export class StepService {
 
     static async create(step: Step) {
         try{
-            const existingStep = await prisma.step.findFirst({
-                where: {
-                    label: step.label,
-                },
-            });
+            // const existingStep = await prisma.step.findFirst({
+            //     where: {
+            //         label: step.label,
+            //     },
+            // });
 
-            if(existingStep) {
-                throw new Error("Une étape avec ce nom existe déjà");
-            }
+            // if(existingStep) {
+            //     throw new Error("Une étape avec ce nom existe déjà");
+            // }
             const newStep = await prisma.step.create({
                     data: {
                         productorId: step.productorId,
@@ -91,7 +91,6 @@ export class StepService {
                     stepId: id,
                  },
             });
-
             return deletedStep;
         } catch (error) {
             console.error("Erreur de suppression de l'étape:", error);

@@ -77,7 +77,7 @@ export default function Selling() {
       // Vérifier si l'ajout dépasse le stock disponible
       if (vinExistant) {
         if (vinExistant.stock >= wine.stock) {
-          alert(`Désolé, il ne reste que ${wine.stock} bouteille(s) de ${wine.nom} en stock.`);
+          showAlert(`Désolé, il ne reste que ${wine.stock} bouteille(s) de ${wine.nom} en stock.`);
           return;
         }
         

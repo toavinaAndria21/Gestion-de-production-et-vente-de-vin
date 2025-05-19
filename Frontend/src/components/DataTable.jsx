@@ -27,12 +27,12 @@ const DataTable = ({ data, columns }) => {
 
   return (
     <div className="w-full mx-auto">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         {/* Classe hidden ajoutée pour masquer sur les petits écrans */}
-        <div className="hidden md:block overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-100">
-          <table className="w-full table-auto">
-            <thead>
-              <tr className="text-center text-sm text-gray-500 bg-gray-300">
+        <div className="hidden md:block overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-100 ">
+          <table className="w-full min-w-full table-auto">
+            <thead className="bg-red-900 text-white">
+              <tr>
                 {columns.map((column, index) => (
                   <th
                     key={index}
