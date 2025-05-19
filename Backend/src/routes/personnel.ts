@@ -2,6 +2,7 @@ import { Router } from "express";
 import { personnelController } from "../controller/personnel";
 const personnelRouter = Router();
 
+personnelRouter.post("/login", personnelController.login);
 personnelRouter.get("/", personnelController.getAllPersonnel);
 personnelRouter.post("/", personnelController.createUSer);
 personnelRouter.post("/login", personnelController.login);

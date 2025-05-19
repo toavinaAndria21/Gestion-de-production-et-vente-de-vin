@@ -1,5 +1,7 @@
 import prisma from "../config/prisma";
 import { NewUser } from "../type/user";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export class personnelService {
     static async getAll(){
@@ -35,10 +37,36 @@ export class personnelService {
         if (!user) {
             throw new Error("User not found");
         }
-        if (user.password !== password) {
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
             throw new Error("Invalid password");
         }
-        return user;
+
+        const secret = process.env.JWT_SECRET
+        if (!secret) {
+            throw new Error("JWT secret is not defined");
+        }
+
+        const token = jwt.sign({
+            personnelId: user.personnelId,
+            email: user.email,
+            role: user.role,
+        },
+        secret as string,
+        { expiresIn: '1d' });
+        
+        return {
+            user:{
+                name: user.name,
+                lastName: user.lastName,
+                personnelId: user.personnelId,
+                email: user.email,
+                role: user.role,
+            },
+            token,
+        };
+
     }
 
     static async update(cin:string, data:Partial<NewUser>) {

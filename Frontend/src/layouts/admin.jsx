@@ -1,38 +1,42 @@
 import Sidebar from "../components/sideBar";
-import { WalletCards, LayoutDashboard } from "lucide-react";
+import { Layers, CircleGauge, LayoutDashboard, UsersRound, Grape, Wine, History, ChartColumnIncreasing } from "lucide-react";
 import { Outlet } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/authContext";
+export default function AdminLayout() {
 
-export default function SellerLayout() {
+    const { user } = useContext(AuthContext);
+    
     const menu = [
         {
           name: "Tableau de bord",
-          icon: <LayoutDashboard />,
+          icon: <CircleGauge />,
           path: "/admin/dashboard",
         },
         {
             name: "Personnels",
-            icon: <LayoutDashboard />,
+            icon: <UsersRound />,
             path: "/admin/personnel",
         },  
         {
           name: "Production",
-          icon: <LayoutDashboard />,
+          icon: <Grape />,
           submenu: [
-            { name: "Suivi des cuvées", icon: <WalletCards />, path: "/admin/production/tracking" },
-            { name: "Historique", icon: <WalletCards />, path: "/admin/production/history" },
+            { name: "Suivi des cuvées", icon: <Wine />, path: "/admin/production/tracking" },
+            { name: "Historique", icon: <History />, path: "/admin/production/history" },
           ],
         },
         {
             name: "Ventes",
             icon: <LayoutDashboard />,
             submenu: [
-                { name: "Statistiques", icon: <WalletCards />, path: "/admin/selling/stats" },
-                { name: "Historique", icon: <WalletCards />, path: "/admin/selling/history" },
+                { name: "Statistiques", icon: <ChartColumnIncreasing />, path: "/admin/selling/stats" },
+                { name: "Historique", icon: <History />, path: "/admin/selling/history" },
               ],
         },
         {
             name: "Stocks",
-            icon: <LayoutDashboard />,
+            icon: <Layers />,
             path: "/admin/stocks",
         },    
 
@@ -43,7 +47,7 @@ export default function SellerLayout() {
     <div className="h-screen flex overflow-hidden bg-gray-50">
       {/* Sidebar */}
       <div className="flex-none">
-        <Sidebar menuItems={menu} />
+        <Sidebar menuItems={menu} user={user}/>
       </div>
 
       {/* Main content */}

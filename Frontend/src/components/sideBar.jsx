@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, User } from "lucide-react";
+import ConfirmDeleteModal from "./confirmDeleteModal";
+import { AuthContext } from "../context/authContext";
 
-const Sidebar = ({ menuItems }) => {
+const Sidebar = ({ menuItems, user }) => {
+
+
+  const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -24,7 +30,15 @@ const Sidebar = ({ menuItems }) => {
     setOpenSubmenu(openSubmenu === index ? null : index);
   };
 
+  const handleLogout = () => {
+    window.location.href = "/";
+    logout();
+  }
+
   return (
+    <>
+    <ConfirmDeleteModal isOpen={isOpen} isForLoOut={true} onClose={()=>setIsOpen(false)} onConfirm={handleLogout} message="Êtes-vous sûr de vouloir vous déconnecter ?"/>
+
     <div className="w-60 h-screen bg-red-900 text-white p-6 relative overflow-y-auto">
       <div className="text-xl font-bold mb-8 flex items-center">
         <span className="mr-2 text-2xl">🍷</span>
@@ -94,17 +108,17 @@ const Sidebar = ({ menuItems }) => {
 
       <div className="absolute bottom-20 flex items-center">
         <div className="w-10 h-10 rounded-full bg-red-950 flex items-center justify-center font-bold mr-3">
-          V
+          <User />
         </div>
         <div>
-          <div>Jean Dupont</div>
-          <div className="text-xs opacity-80">Vendeur</div>
+          <div className="font-bold">{user?.role}</div>
+          <div className="text-xs">{user?.name} {user?.lastName}</div>
         </div>
       </div>
 
       <button
         onClick={() => {
-          console.log("Déconnexion");
+          setIsOpen(true);
         }}
         className="absolute bottom-6 left-1/2 right-1/2 -translate-x-1/2 p-3 w-52 rounded bg-red-950 flex items-center justify-center hover:gap-1 transition-all space-x-2"
       >
@@ -112,6 +126,7 @@ const Sidebar = ({ menuItems }) => {
         <span>Déconnexion</span>
       </button>
     </div>
+    </>
   );
 };
 
