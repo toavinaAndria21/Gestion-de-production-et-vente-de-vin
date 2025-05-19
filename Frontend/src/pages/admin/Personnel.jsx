@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import SearchInput from "../../components/searchInput";
-import DataTable from "../../components/DataTable";
+import DataTable from "../../components/dataTable";
 import ConfirmDeleteModal from "../../components/confirmDeleteModal";
 import { X } from "lucide-react";
 export default function Personnel() {

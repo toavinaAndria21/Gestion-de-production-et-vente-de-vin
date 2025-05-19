@@ -1,217 +1,229 @@
-import { useState } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
-import SearchInput from "../../components/searchInput";
-
-
-const durationUnits = ["JOUR", "HEURE"];
+import { useState, useEffect } from "react";
+import { Plus } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import DataTable from "../../components/newDataTable";
+import GenericForm from "../../components/genericForm";
+import { fetchAll, create, update, remove } from "../../utils/api";
 
 export default function Steps() {
-  const [steps, setSteps] = useState([
-    {
-      stepId: 1,
-      label: "Égrappage",
-      duration: 1,
-      unit: "JOUR",
-      temperature: 20,
-      description: "Séparation des grappes",
-      productorId: "P001",
-      createdAt: new Date(),
-    },
-    {
-      stepId: 2,
-      label: "Fermentation",
-      duration: 7,
-      unit: "JOUR",
-      temperature: 25,
-      description: "Transformation des sucres en alcool",
-      productorId: "P001",
-      createdAt: new Date(),
-    },
-  ]);
+  const [steps, setSteps] = useState([]);
+  const [editingStep, setEditingStep] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dataTableLoading, setDataTableLoading] = useState(true);
+  const [dataTableError, setDataTableError] = useState(null);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingId, setEditingId] = useState(null);
-
-  const [newStep, setNewStep] = useState({
-    label: "",
-    duration: "",
-    unit: "JOUR",
-    description: "",
-    productorId: "P001",
-  });
-
-  const ajouterOuModifierStep = () => {
-    const { label, duration, unit } = newStep;
-    if (!label || !duration || !unit) {
-      alert("Les champs obligatoires sont manquants.");
-      return;
+  useEffect(() => {
+    async function loadSteps() {
+      setDataTableLoading(true);
+      setDataTableError(null);
+      try {
+        const data = await fetchAll("step");
+        setSteps(data);
+      } catch (error) {
+        setDataTableError("Erreur de chargement des étapes.");
+        console.error("Erreur de chargement des étapes :", error);
+        toast.error("Erreur de chargement des étapes.");
+      } finally {
+        setDataTableLoading(false);
+      }
     }
+    loadSteps();
+  }, []);
 
-    if (editingId !== null) {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.stepId === editingId
-            ? { ...s, ...newStep, duration: parseInt(duration) }
-            : s
-        )
-      );
-      setEditingId(null);
-    } else {
-      const stepId = steps.length ? steps[steps.length - 1].stepId + 1 : 1;
-      setSteps([
-        ...steps,
-        {
-          ...newStep,
-          stepId,
-          duration: parseInt(duration),
-          createdAt: new Date(),
+  const handleAdd = () => {
+    setEditingStep(null);
+    setShowForm(true);
+  };
+
+  const openEditModal = (step) => {
+    setEditingStep(step);
+    setShowForm(true);
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingStep(null);
+  };
+
+  const handleFormSubmit = async (formData) => {
+    setIsLoading(true);
+    try {
+      const stepData = {
+        ...formData,
+        duration: parseInt(formData.duration, 10),
+        productorId: "123123123123",
+      };
+
+      if (editingStep) {
+        const updatedStep = await update("step", editingStep.stepId, stepData);
+        setSteps((prev) =>
+          prev.map((item) => (item.stepId === editingStep.stepId ? updatedStep : item))
+        );
+        toast.success("Étape modifiée avec succès.");
+      } else {
+        const newStepFromApi = await create("step", stepData);
+        setSteps((prev) => [...prev, newStepFromApi]);
+        toast.success("Étape ajoutée avec succès.");
+      }
+
+      setShowForm(false);
+      setEditingStep(null);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout ou modification d'une étape :", error);
+      toast.error("Une erreur est survenue.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = (item) => {
+    toast(
+      `Voulez-vous supprimer "${item.label}" ?`,
+      {
+        action: {
+          label: "Supprimer",
+          onClick: () => confirmDelete(item),
         },
-      ]);
-    }
-
-    setNewStep({
-      label: "",
-      duration: "",
-      unit: "JOUR",
-      description: "",
-      productorId: "P001",
-    });
+        cancel: {
+          label: "Annuler",
+        },
+      }
+    );
   };
 
-  const modifierStep = (step) => {
-    setEditingId(step.stepId);
-    setNewStep({
-      label: step.label,
-      duration: step.duration,
-      unit: step.unit,
-      description: step.description,
-      productorId: step.productorId,
-    });
-  };
-
-  const supprimerStep = (id) => {
-    setSteps(steps.filter((s) => s.stepId !== id));
-    if (editingId === id) {
-      setEditingId(null);
-      setNewStep({
-        label: "",
-        duration: "",
-        unit: "JOUR",
-        description: "",
-        productorId: "P001",
-      });
+  const confirmDelete = async (item) => {
+    setIsLoading(true);
+    try {
+      await remove("step", item.stepId);
+    
+      setSteps((prev) => prev.filter((i) => i.stepId !== item.stepId));
+      toast.success(`Étape "${item.label}" supprimée.`);
+      
+      if (editingStep && editingStep.stepId === item.stepId) {
+        setEditingStep(null);
+        setShowForm(false);
+      }
+    } catch (error) {
+      console.error("Erreur de suppression :", error);
+      toast.error("Échec de la suppression.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const filteredSteps = steps.filter((step) =>
-    step.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <div className="w-full h-full px-6 py-4 bg-gray-50 max-w-none">
-      <h1 className="text-2xl font-extrabold text-red-900 mb-6">Étapes de Vinification</h1>
-
-    {/* Barre de recherche */}
-    <SearchInput onChange={setSearchTerm}/>
-
-      {/* Formulaire d'ajout/modification */}
-      <div className="bg-white shadow-lg p-6 rounded-xl mb-6 border border-red-100">
-        <h2 className="font-semibold text-gray-700 mb-4 text-lg">
-          {editingId ? "Modifier l'étape" : "Ajouter une étape"}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input
-            type="text"
-            placeholder="Nom de l'étape"
-            value={newStep.label}
-            onChange={(e) => setNewStep({ ...newStep, label: e.target.value })}
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          />
-          <input
-            type="number"
-            placeholder="Durée"
-            value={newStep.duration}
-            onChange={(e) => setNewStep({ ...newStep, duration: e.target.value })}
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          />
-          <select
-            value={newStep.unit}
-            onChange={(e) => setNewStep({ ...newStep, unit: e.target.value })}
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          >
-            {durationUnits.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Description"
-            value={newStep.description}
-            onChange={(e) => setNewStep({ ...newStep, description: e.target.value })}
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          />
+  // Configuration des colonnes pour le nouveau DataTable
+  const columns = [
+    { 
+      key: "label", 
+      label: "Nom",
+      width: "w-1/5" 
+    },
+    { 
+      key: "duration", 
+      label: "Durée",
+      width: "w-1/6"
+    },
+    { 
+      key: "unit", 
+      label: "Unité",
+      width: "w-1/6"
+    },
+    { 
+      key: "description", 
+      label: "Description",
+      width: "w-1/3"
+    },
+    {
+      key: "createdAt",
+      label: "Date de création",
+      width: "w-1/6",
+      render: (item) =>
+        item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString("fr-FR")
+          : "N/A",
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      width: "w-1/6",
+      sortable: false,
+      render: (item) => (
+        <div className="flex justify-center gap-2">
           <button
-            onClick={ajouterOuModifierStep}
-            className="bg-red-900 hover:bg-red-800 text-white px-4 py-3 rounded flex items-center justify-center w-full"
+            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200"
+            onClick={() => openEditModal(item)}
+            title="Modifier cet ingrédient"
           >
-            <Plus size={18} className="mr-1" />
-            {editingId ? "Modifier" : "Ajouter"}
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Modifier
+          </button>
+          <button
+            className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200"
+            onClick={() => handleDelete(item)}
+            title="Supprimer cet ingrédient"
+          >
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Supprimer
           </button>
         </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="w-full h-full px-6 py-4 bg-gray-50 flex flex-col space-y-6 overflow-hidden">
+      <Toaster richColors position="top-right" />
+      
+      {/* En-tête de la page */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-extrabold text-red-900">Gestion des Étapes</h1>
+        
+        {/* Bouton d'ajout - affiché seulement si le formulaire n'est pas visible */}
+        {!showForm && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Ajouter une étape
+          </button>
+        )}
       </div>
 
-      {/* Tableau des étapes */}
-      <div className="bg-white shadow-lg rounded-xl overflow-auto border border-red-100">
-        <table className="w-full table-auto text-sm">
-          <thead className="bg-red-900 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left">Nom</th>
-              <th className="px-4 py-3 text-left">Durée</th>
-              <th className="px-4 py-3 text-left">Unité</th>
-              <th className="px-4 py-3 text-left">Description</th>
-              <th className="px-4 py-3 text-left">Créée le</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSteps.map((step) => (
-              <tr key={step.stepId} className="border-b hover:bg-red-50">
-                <td className="px-4 py-3">{step.label}</td>
-                <td className="px-4 py-3">{step.duration}</td>
-                <td className="px-4 py-3">{step.unit}</td>
-                <td className="px-4 py-3">{step.description || "-"}</td>
-                <td className="px-4 py-3">
-                  {new Date(step.createdAt).toLocaleDateString("fr-FR")}
-                </td>
-                <td className="px-4 py-3 text-right space-x-3">
-                  <button
-                    onClick={() => modifierStep(step)}
-                    className="text-blue-600 hover:text-blue-800"
-                    title="Modifier"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => supprimerStep(step.stepId)}
-                    className="text-red-600 hover:text-red-800"
-                    title="Supprimer"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredSteps.length === 0 && (
-              <tr>
-                <td colSpan="6" className="text-center py-6 text-gray-400">
-                  Aucune étape trouvée.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Formulaire d'ajout/édition */}
+      {showForm && (
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editingStep ? "Modifier l'étape" : "Ajouter une nouvelle étape"}
+            </h3>
+            <GenericForm
+              modelType="step"
+              initialData={editingStep || {}}
+              onSubmit={handleFormSubmit}
+              onCancel={handleFormCancel}
+              isEditing={!!editingStep}
+              isLoading={isLoading}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Tableau avec le nouveau composant DataTable */}
+      <div className="flex-1 overflow-hidden">
+        <DataTable
+          data={steps}
+          columns={columns}
+          title="Liste des étapes de vinification"
+          subtitle={`${steps.length} étape${steps.length > 1 ? 's' : ''} enregistrée${steps.length > 1 ? 's' : ''}`}
+          loading={dataTableLoading}
+          error={dataTableError}
+        />
       </div>
     </div>
   );

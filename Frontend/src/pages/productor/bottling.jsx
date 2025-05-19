@@ -1,24 +1,22 @@
 import { useState } from "react";
-import { Plus, Trash2, Calendar, Wine, Check, Search, DownloadCloud, X } from "lucide-react";
-import DataTable from "../../components/DataTable";
+import { Plus, Calendar, Wine, Check, Search, DownloadCloud, X, Package, Tag, Hash } from "lucide-react";
+import DataTable from "../../components/newDataTable";
+import SearchInput from "../../components/searchInput";
+import BottlingForm from "../../components/bottlingForm";
+import ItemSelector from "../../components/itemSelector";
 
 export default function Bottling() {
   const [editData, setEditData] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
   // Liste des cuvées disponibles
   const [cuvees, setCuvees] = useState([
     { id: 1, nom: "Cuvée Prestige", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
     { id: 2, nom: "Rosé d'Été", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
     { id: 3, nom: "Blanc de Blancs", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
-    { id: 4, nom: "Cuvée Prestige", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
-    { id: 5, nom: "Rosé d'Été", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
-    { id: 6, nom: "Blanc de Blancs", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
-    { id: 7, nom: "Cuvée Prestige", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
-    { id: 8, nom: "Rosé d'Été", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
-    { id: 9, nom: "Blanc de Blancs", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
-    { id: 10, nom: "Cuvée Prestige", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
-    { id: 11, nom: "Rosé d'Été", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
-    { id: 12, nom: "Blanc de Blancs", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
+    { id: 4, nom: "Cuvée Tradition", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
+    { id: 5, nom: "Rosé Premium", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
+    { id: 6, nom: "Chardonnay", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
   ]);
 
   // Cuvée sélectionnée pour la mise en bouteille
@@ -26,7 +24,7 @@ export default function Bottling() {
   
   // Données du formulaire de mise en bouteille
   const [bottlingData, setBottlingData] = useState({
-    dateMiseEnBouteille: "",
+    dateMiseEnBouteille: new Date().toISOString().split('T')[0],
     nombreBouteilles: "",
     typeBouteille: "standard",
     typeEtiquette: "standard",
@@ -43,123 +41,174 @@ export default function Bottling() {
       nombreBouteilles: 1200, 
       typeBouteille: "premium", 
       typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      lotNumber: "CP-2025-001",
+      notes: "Première mise en bouteille de l'année"
     },
     { 
       id: 2, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      cuvee: "Rosé d'Été", 
+      date: "08/05/2025", 
+      nombreBouteilles: 800, 
+      typeBouteille: "standard", 
+      typeEtiquette: "standard",
+      lotNumber: "RE-2025-002",
+      notes: "Excellent millésime"
     },
     { 
       id: 3, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      cuvee: "Blanc de Blancs", 
+      date: "05/05/2025", 
+      nombreBouteilles: 1500, 
+      typeBouteille: "magnum", 
+      typeEtiquette: "reserve",
+      lotNumber: "BB-2025-003",
+      notes: "Édition limitée"
     },
     { 
       id: 4, 
       cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
+      date: "01/05/2025", 
+      nombreBouteilles: 600, 
+      typeBouteille: "jeroboam", 
       typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
-    }, 
+      lotNumber: "CP-2025-004",
+      notes: "Format spécial pour événements"
+    },
     { 
       id: 5, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      cuvee: "Rosé d'Été", 
+      date: "28/04/2025", 
+      nombreBouteilles: 900, 
+      typeBouteille: "standard", 
+      typeEtiquette: "custom",
+      lotNumber: "RE-2025-005",
+      notes: "Étiquette personnalisée client"
     },
     { 
       id: 6, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
+      cuvee: "Chardonnay", 
+      date: "25/04/2025", 
+      nombreBouteilles: 1100, 
       typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      typeEtiquette: "standard",
+      lotNumber: "CH-2025-006",
+      notes: "Assemblage final validé"
     },
     { 
       id: 7, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      cuvee: "Blanc de Blancs", 
+      date: "20/04/2025", 
+      nombreBouteilles: 750, 
+      typeBouteille: "standard", 
+      typeEtiquette: "reserve",
+      lotNumber: "BB-2025-007",
+      notes: "Cuvée spéciale export"
     },
     { 
       id: 8, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
+      cuvee: "Cuvée Tradition", 
+      date: "15/04/2025", 
+      nombreBouteilles: 2000, 
+      typeBouteille: "standard", 
+      typeEtiquette: "standard",
+      lotNumber: "CT-2025-008",
+      notes: "Production standard"
     },
-    { 
-      id: 9, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
-    },
-    { 
-      id: 10, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
-    },
-    { 
-      id: 11, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001"
-    }
   ]);
 
-  // Configuration des colonnes du tableau
+  // Configuration des colonnes du tableau optimisée pour l'espace
   const columns = [
-    { key: "cuvee", label: "Cuvée", width: "15%" },
-    { key: "date", label: "Date", width: "12%" },
-    { key: "nombreBouteilles", label: "Nb. Bouteilles", width: "12%" },
-    { key: "typeBouteille", label: "Type Bouteille", width: "15%" },
-    { key: "typeEtiquette", label: "Étiquette", width: "15%" },
-    { key: "lotNumber", label: "Lot", width: "15%" },
+    { 
+      key: "cuvee", 
+      label: "Cuvée", 
+      render: (item) => (
+        <div>
+          <div className="font-medium text-gray-900">{item.cuvee}</div>
+          <div className="text-xs text-gray-500">Lot: {item.lotNumber}</div>
+        </div>
+      )
+    },
+    { 
+      key: "date", 
+      label: "Date", 
+      render: (item) => (
+        <div className="text-sm text-gray-600">{item.date}</div>
+      )
+    },
+    { 
+      key: "nombreBouteilles", 
+      label: "Quantité", 
+      render: (item) => (
+        <div className="text-center">
+          <div className="font-semibold text-lg text-blue-600">{item.nombreBouteilles.toLocaleString()}</div>
+          <div className="text-xs text-gray-500">bouteilles</div>
+        </div>
+      )
+    },
+    { 
+      key: "typeBouteille", 
+      label: "Format", 
+      render: (item) => {
+        const formats = {
+          'standard': { label: '75cl', color: 'bg-gray-100 text-gray-800' },
+          'magnum': { label: '1.5L', color: 'bg-blue-100 text-blue-800' },
+          'premium': { label: '75cl★', color: 'bg-purple-100 text-purple-800' },
+          'jeroboam': { label: '3L', color: 'bg-green-100 text-green-800' }
+        };
+        const format = formats[item.typeBouteille] || formats.standard;
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${format.color}`}>
+            <Package className="w-3 h-3 mr-1" />
+            {format.label}
+          </span>
+        );
+      }
+    },
+    { 
+      key: "typeEtiquette", 
+      label: "Étiquette", 
+      render: (item) => {
+        const etiquettes = {
+          'standard': { label: 'Standard', color: 'bg-gray-100 text-gray-800' },
+          'prestige': { label: 'Prestige', color: 'bg-yellow-100 text-yellow-800' },
+          'reserve': { label: 'Réserve', color: 'bg-red-100 text-red-800' },
+          'custom': { label: 'Custom', color: 'bg-indigo-100 text-indigo-800' }
+        };
+        const etiquette = etiquettes[item.typeEtiquette] || etiquettes.standard;
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${etiquette.color}`}>
+            <Tag className="w-3 h-3 mr-1" />
+            {etiquette.label}
+          </span>
+        );
+      }
+    },
+    { 
+      key: "notes", 
+      label: "Notes", 
+      render: (item) => (
+        <div className="text-xs text-gray-600 max-w-xs truncate" title={item.notes}>
+          {item.notes || "-"}
+        </div>
+      )
+    },
     {
       key: "actions",
       label: "Actions",
-      width: "16%",
+      sortable: false,
       render: (item) => (
-        <div className="flex justify-center gap-2">
+        <div className="flex gap-1">
           <button
-            className="px-2 py-1 text-xs text-blue-600 border border-blue-500 rounded hover:bg-blue-50"
+            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
             onClick={() => handleEdit(item)}
+            title="Modifier cette mise en bouteille"
           >
             Modifier
           </button>
           <button
-            className="px-2 py-1 text-xs text-red-600 border border-red-500 rounded hover:bg-red-50"
+            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors"
             onClick={() => handleDelete(item)}
+            title="Supprimer cette mise en bouteille"
           >
             Supprimer
           </button>
@@ -168,22 +217,16 @@ export default function Bottling() {
     }
   ];
 
-  // Fonction pour rechercher une cuvée
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  const filteredCuvees = cuvees.filter(cuvee => 
-    cuvee.nom.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Fonction pour sélectionner une cuvée
   const selectCuvee = (cuvee) => {
     setSelectedCuvee(cuvee);
     
     if (!editData) {
       // En mode création, générer un nouveau numéro de lot
+      const prefix = cuvee.nom.split(' ').map(word => word.charAt(0)).join('').toUpperCase();
       setBottlingData({
         ...bottlingData,
-        lotNumber: `${cuvee.nom.substring(0, 2).toUpperCase()}-${new Date().getFullYear()}-${String(bottlingHistory.length + 1).padStart(3, '0')}`
+        lotNumber: `${prefix}-${new Date().getFullYear()}-${String(bottlingHistory.length + 1).padStart(3, '0')}`
       });
     }
   };
@@ -199,13 +242,9 @@ export default function Bottling() {
 
   // Gérer la modification d'un élément
   const handleEdit = (item) => {
-    // Trouver la cuvée correspondante
     const cuveeItem = cuvees.find(c => c.nom === item.cuvee);
-    
-    // Sélectionner la cuvée
     setSelectedCuvee(cuveeItem || null);
     
-    // Mettre à jour les données du formulaire avec les valeurs de l'élément
     setBottlingData({
       dateMiseEnBouteille: item.date,
       nombreBouteilles: item.nombreBouteilles,
@@ -215,8 +254,8 @@ export default function Bottling() {
       notes: item.notes || ""
     });
     
-    // Définir l'élément à modifier
     setEditData(item);
+    setShowForm(true);
   };
 
   // Gérer la suppression d'un élément
@@ -234,7 +273,7 @@ export default function Bottling() {
     }
     
     if (editData) {
-      // Mode modification - mettre à jour l'élément existant
+      // Mode modification
       const updatedHistory = bottlingHistory.map(item => {
         if (item.id === editData.id) {
           return {
@@ -252,13 +291,13 @@ export default function Bottling() {
       });
       
       setBottlingHistory(updatedHistory);
-      setEditData(null); // Quitter le mode modification
+      setEditData(null);
     } else {
-      // Mode création - ajouter un nouvel élément
+      // Mode création
       const newBottling = {
         id: bottlingHistory.length > 0 ? Math.max(...bottlingHistory.map(item => item.id)) + 1 : 1,
         cuvee: selectedCuvee.nom,
-        date: bottlingData.dateMiseEnBouteille,
+        date: new Date().toLocaleDateString("fr-FR"),
         nombreBouteilles: parseInt(bottlingData.nombreBouteilles),
         typeBouteille: bottlingData.typeBouteille,
         typeEtiquette: bottlingData.typeEtiquette,
@@ -269,14 +308,14 @@ export default function Bottling() {
       setBottlingHistory([...bottlingHistory, newBottling]);
     }
     
-    // Réinitialiser le formulaire
     resetForm();
+    setShowForm(false);
   };
 
   // Réinitialisation du formulaire
   const resetForm = () => {
     setBottlingData({
-      dateMiseEnBouteille: "",
+      dateMiseEnBouteille: new Date().toISOString().split('T')[0],
       nombreBouteilles: "",
       typeBouteille: "standard",
       typeEtiquette: "standard",
@@ -288,217 +327,251 @@ export default function Bottling() {
     setEditData(null);
   };
 
-  // Génération des couleurs de fond pour les cartes de cuvées
-  const getCuveeCardClass = (couleur) => {
-    switch(couleur) {
-      case "red": return "bg-red-100 border-l-4 border-red-800";
-      case "pink": return "bg-pink-100 border-l-4 border-pink-500";
-      case "yellow": return "bg-yellow-100 border-l-4 border-yellow-500";
-      default: return "bg-gray-100 border-l-4 border-gray-500";
-    }
-  };
+  // Calcul des statistiques
+  const totalBottles = bottlingHistory.reduce((sum, item) => sum + item.nombreBouteilles, 0);
+  const uniqueCuvees = [...new Set(bottlingHistory.map(item => item.cuvee))].length;
+  const recentBottlings = bottlingHistory.filter(item => {
+    const itemDate = new Date(item.date.split('/').reverse().join('-'));
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return itemDate >= thirtyDaysAgo;
+  }).length;
 
   return (
-    <div className="w-full h-full p-4 bg-gray-50">
-      <h1 className="text-xl font-bold text-red-900 mb-4">
-        {editData ? "Modification d'une mise en bouteille" : "Mise en Bouteille"}
-      </h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Sélection de la cuvée */}
-        <div className="lg:col-span-1 bg-white shadow rounded-lg p-4">
-          <h2 className="font-semibold text-gray-800 mb-4 flex items-center">
-            <Wine size={18} className="mr-2 text-red-900" />
-            Sélection de la Cuvée
-            {editData && (
-              <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                Mode Modification
-              </span>
-            )}
-          </h2>
-          
-          <div className="mb-4">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Rechercher une cuvée..." 
-                className="pl-8 border p-2 rounded w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search size={16} className="absolute left-2 top-3 text-gray-400" />
-            </div>
+    <div className="w-full min-h-screen p-6 bg-gray-50">
+      <div className="mx-auto max-w-full">
+        {/* En-tête avec bouton d'ajout */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Mise en Bouteille</h1>
+            <p className="text-gray-600 mt-1">Gestion des mises en bouteille et historique</p>
           </div>
-          
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {filteredCuvees.map(cuvee => (
-              <div 
-                key={cuvee.id} 
-                className={`p-3 rounded ${getCuveeCardClass(cuvee.couleur)} cursor-pointer hover:opacity-90 ${selectedCuvee?.id === cuvee.id ? 'ring-2 ring-red-900' : ''}`}
-                onClick={() => selectCuvee(cuvee)}
-              >
-                <div className="flex justify-between items-start">
+          <button
+            onClick={() => {
+              setShowForm(!showForm);
+              if (showForm) {
+                resetForm();
+              }
+            }}
+            className="inline-flex items-center px-4 py-2 bg-red-800 text-white text-sm font-medium rounded-lg hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {showForm ? 'Annuler' : 'Nouvelle mise en bouteille'}
+          </button>
+        </div>
+
+        {/* Formulaire conditionnel */}
+        {showForm && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {editData ? 'Modifier la mise en bouteille' : 'Nouvelle mise en bouteille'}
+            </h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Sélection de cuvée simplifiée */}
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Sélection de la cuvée *
+                </label>
+                <select
+                  value={selectedCuvee?.id || ''}
+                  onChange={(e) => {
+                    const cuvee = cuvees.find(c => c.id === parseInt(e.target.value));
+                    if (cuvee) selectCuvee(cuvee);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Choisir une cuvée...</option>
+                  {cuvees.map(cuvee => (
+                    <option key={cuvee.id} value={cuvee.id}>
+                      {cuvee.nom} - {cuvee.qualite}
+                    </option>
+                  ))}
+                </select>
+                
+                {selectedCuvee && (
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-600">
+                      <strong>Qualité:</strong> {selectedCuvee.qualite}<br/>
+                      <strong>Créée le:</strong> {selectedCuvee.dateCreation}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulaire principal */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="font-medium">{cuvee.nom}</h3>
-                    <p className="text-sm text-gray-600">Qualité: {cuvee.qualite}</p>
-                    <p className="text-xs text-gray-500">Créé le: {cuvee.dateCreation}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date de mise en bouteille *
+                    </label>
+                    <input
+                      type="date"
+                      name="dateMiseEnBouteille"
+                      value={bottlingData.dateMiseEnBouteille}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      required
+                    />
                   </div>
-                  {selectedCuvee?.id === cuvee.id && (
-                    <Check size={18} className="text-green-600" />
-                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre de bouteilles *
+                    </label>
+                    <input
+                      type="number"
+                      name="nombreBouteilles"
+                      value={bottlingData.nombreBouteilles}
+                      onChange={handleInputChange}
+                      placeholder="Ex: 1000"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type de bouteille
+                    </label>
+                    <select
+                      name="typeBouteille"
+                      value={bottlingData.typeBouteille}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    >
+                      <option value="standard">Standard (75cl)</option>
+                      <option value="magnum">Magnum (1.5L)</option>
+                      <option value="premium">Premium (75cl)</option>
+                      <option value="jeroboam">Jéroboam (3L)</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type d'étiquette
+                    </label>
+                    <select
+                      name="typeEtiquette"
+                      value={bottlingData.typeEtiquette}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    >
+                      <option value="standard">Standard</option>
+                      <option value="prestige">Prestige</option>
+                      <option value="reserve">Réserve</option>
+                      <option value="custom">Personnalisée</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Numéro de lot
+                  </label>
+                  <input
+                    type="text"
+                    name="lotNumber"
+                    value={bottlingData.lotNumber}
+                    onChange={handleInputChange}
+                    placeholder="Généré automatiquement"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    name="notes"
+                    value={bottlingData.notes}
+                    onChange={handleInputChange}
+                    placeholder="Commentaires sur cette mise en bouteille..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!selectedCuvee || !bottlingData.nombreBouteilles}
+                    className="flex-1 px-4 py-2 bg-red-800 text-white text-sm font-medium rounded-md hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {editData ? 'Mettre à jour' : 'Enregistrer la mise en bouteille'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      resetForm();
+                      setShowForm(false);
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Annuler
+                  </button>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+        )}
+
+        {/* Statistiques compactes */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total bouteilles</p>
+                <p className="text-2xl font-bold text-red-600">{totalBottles.toLocaleString()}</p>
+              </div>
+              <Wine className="h-8 w-8 text-red-600" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Mises en bouteille</p>
+                <p className="text-2xl font-bold text-blue-600">{bottlingHistory.length}</p>
+              </div>
+              <Package className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Cuvées différentes</p>
+                <p className="text-2xl font-bold text-green-600">{uniqueCuvees}</p>
+              </div>
+              <Tag className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Ce mois-ci</p>
+                <p className="text-2xl font-bold text-purple-600">{recentBottlings}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-purple-600" />
+            </div>
           </div>
         </div>
-        
-        {/* Formulaire de mise en bouteille */}
-        <div className="lg:col-span-2 bg-white shadow rounded-lg p-4">
-          <h2 className="font-semibold text-gray-800 mb-4 flex items-center">
-            {editData ? (
-              <>
-                <span className="mr-2 bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center">
-                  <X size={14} className="cursor-pointer" onClick={resetForm} />
-                </span>
-                Modification de la Mise en Bouteille
-              </>
-            ) : (
-              <>
-                <DownloadCloud size={18} className="mr-2 text-red-900" />
-                Informations de Mise en Bouteille
-              </>
-            )}
-          </h2>
-          
-          {selectedCuvee ? (
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuvée sélectionnée</label>
-                  <input 
-                    type="text" 
-                    value={selectedCuvee.nom} 
-                    className="border p-2 rounded w-full bg-gray-100" 
-                    disabled 
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de mise en bouteille*</label>
-                  <div className="relative">
-                    <input 
-                      type="date" 
-                      name="dateMiseEnBouteille"
-                      value={bottlingData.dateMiseEnBouteille} 
-                      onChange={handleInputChange}
-                      className="border p-2 rounded w-full" 
-                    />
-                    <Calendar size={16} className="absolute right-2 top-3 text-gray-400" />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de bouteilles*</label>
-                  <input 
-                    type="number" 
-                    name="nombreBouteilles"
-                    value={bottlingData.nombreBouteilles} 
-                    onChange={handleInputChange}
-                    className="border p-2 rounded w-full" 
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numéro de lot</label>
-                  <input 
-                    type="text" 
-                    name="lotNumber"
-                    value={bottlingData.lotNumber} 
-                    onChange={handleInputChange}
-                    className="border p-2 rounded w-full" 
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de bouteille</label>
-                  <select 
-                    name="typeBouteille"
-                    value={bottlingData.typeBouteille} 
-                    onChange={handleInputChange}
-                    className="border p-2 rounded w-full"
-                  >
-                    <option value="standard">Standard (75cl)</option>
-                    <option value="magnum">Magnum (1.5L)</option>
-                    <option value="premium">Premium (75cl)</option>
-                    <option value="jeroboam">Jéroboam (3L)</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type d'étiquette</label>
-                  <select 
-                    name="typeEtiquette"
-                    value={bottlingData.typeEtiquette} 
-                    onChange={handleInputChange}
-                    className="border p-2 rounded w-full"
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="prestige">Prestige</option>
-                    <option value="reserve">Réserve</option>
-                    <option value="custom">Personnalisée</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea 
-                  name="notes"
-                  value={bottlingData.notes || ""} 
-                  onChange={handleInputChange}
-                  className="border p-2 rounded w-full h-24" 
-                  placeholder="Ajoutez des notes sur cette mise en bouteille..."
-                />
-              </div>
-              
-              <div className="flex justify-end">
-                <button 
-                  type="button" 
-                  className="mr-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50"
-                  onClick={resetForm}
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="button" 
-                  className={`text-white px-4 py-2 rounded flex items-center ${editData ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-900 hover:bg-red-800'}`}
-                  onClick={handleSubmit}
-                >
-                  {editData ? (
-                    <>Mettre à jour</>
-                  ) : (
-                    <>
-                      <Plus size={18} className="mr-1" />
-                      Enregistrer
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Wine size={48} className="mx-auto mb-2 text-gray-400" />
-              <p>Veuillez sélectionner une cuvée pour commencer la mise en bouteille</p>
-            </div>
-          )}
+
+        {/* Tableau principal - pleine largeur */}
+        <div className="w-full">
+          <DataTable 
+            data={bottlingHistory} 
+            columns={columns}
+            title="Historique des mises en bouteille"
+            subtitle={`${bottlingHistory.length} enregistrements | ${totalBottles.toLocaleString()} bouteilles au total`}
+          />
         </div>
-      </div>
-      
-      {/* Historique des mises en bouteille */}
-      <div className="w-full flex flex-col mt-6 mx-0 bg-white shadow rounded-lg overflow-hidden">
-        <h2 className="font-semibold text-gray-800 p-4 border-b">Historique des mises en bouteille</h2>
-        
-          <DataTable data={bottlingHistory} columns={columns} className="w-full table-fixed" />
       </div>
     </div>
   );

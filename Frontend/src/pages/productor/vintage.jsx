@@ -1,172 +1,275 @@
-import { useState } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { useState, useEffect } from 'react';
+import SearchInput from '../../components/searchInput';
+import CreateVintage from '../../components/createVintage';
+import { fetchAll } from '../../utils/api';
+
+const DurationUnit = {
+  DAYS: 'jours',
+  HOURS: 'heures',
+  WEEKS: 'semaines',
+  MONTHS: 'mois'
+};
+
+const qualityOptions = ['Standard', 'Premium', 'Excellente', 'Bio', 'Nature'];
 
 export default function Vintage() {
-  const [vintages, setVintages] = useState([
-    {
-      vintageId: 1,
-      label: "Cuvée 2023",
-      quality: "Excellente",
-      createdAt: new Date(),
-    },
-    {
-      vintageId: 2,
-      label: "Cuvée 2022",
-      quality: "Bonne",
-      createdAt: new Date(),
-    },
-  ]);
+  const [ingredients, setIngredients] = useState([]);
+  const [steps, setSteps] = useState([]);
+  const [vintages, setVintages] = useState([]);
+  const [activeTab, setActiveTab] = useState('vintages');
+  const [newVintage, setNewVintage] = useState({
+    label: '',
+    quality: 'Standard',
+    selectedIngredients: [],
+    selectedSteps: []
+  });
+  const [simulationSpeed, setSimulationSpeed] = useState(1);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [searchVintageTerm, setSearchVintageTerm] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [newVintage, setNewVintage] = useState({ label: "", quality: "" });
-  const [editingId, setEditingId] = useState(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const ingredientsData = await fetchAll("ingredient");
+        const stepsData = await fetchAll("step");
+        setIngredients(ingredientsData);
+        setSteps(stepsData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des données :", error);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const ajouterOuModifierVintage = () => {
-    const { label, quality } = newVintage;
-    if (!label || !quality) {
-      alert("Tous les champs sont requis.");
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(prevTime => {
+        const newTime = new Date(prevTime);
+        newTime.setDate(newTime.getDate() + 1 * simulationSpeed);
+        return newTime;
+      });
+
+      setVintages(prevVintages =>
+        prevVintages.map(vintage => {
+          if (!vintage.isComplete) {
+            const updatedSteps = vintage.steps.map(step => {
+              if (!step.isComplete) {
+                const daysPassed = Math.floor((currentTime - new Date(step.startDate)) / (1000 * 60 * 60 * 24 * (1 / simulationSpeed)));
+                if (daysPassed >= step.duration) {
+                  return { ...step, isComplete: true, endDate: new Date() };
+                }
+                return step;
+              }
+              return step;
+            });
+            const allStepsComplete = updatedSteps.every(step => step.isComplete);
+            return {
+              ...vintage,
+              steps: updatedSteps,
+              isComplete: allStepsComplete,
+              completionDate: allStepsComplete ? new Date() : null
+            };
+          }
+          return vintage;
+        })
+      );
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [simulationSpeed, currentTime]);
+
+  const isValidVintageName = (name) => {
+    const trimmed = name.trim();
+    const nameRegex = /^[a-zA-ZÀ-ÿ0-9\- ]{3,50}$/;
+  
+    if (!trimmed) return "Le nom ne peut pas être vide.";
+    if (!nameRegex.test(trimmed)) return "Le nom doit comporter entre 3 et 50 caractères, lettres, chiffres, tirets et espaces uniquement.";
+    if (vintages.some(v => v.label.toLowerCase() === trimmed.toLowerCase())) {
+      return "Une cuvée avec ce nom existe déjà.";
+    }
+  
+    return null; // valide
+  };
+  
+  const handleCreateVintage = () => {
+    const validationMessage = isValidVintageName(newVintage.label);
+    if (validationMessage) {
+      alert(validationMessage);
       return;
     }
+    if (newVintage.selectedIngredients.length === 0 || newVintage.selectedSteps.length === 0) {
+      alert("Veuillez sélectionner au moins un ingrédient et une étape.");
+      return;
+    }
+    
 
-    if (editingId !== null) {
-      setVintages((prev) =>
-        prev.map((v) =>
-          v.vintageId === editingId ? { ...v, label, quality } : v
-        )
-      );
-      setEditingId(null);
-    } else {
-      const newId = vintages.length
-        ? vintages[vintages.length - 1].vintageId + 1
-        : 1;
-      setVintages([
-        ...vintages,
-        {
-          vintageId: newId,
-          label,
-          quality,
-          createdAt: new Date(),
-        },
-      ]);
+    setIsCreating(true);
+
+    const newVintageSteps = newVintage.selectedSteps.map(stepId => {
+      const step = steps.find(s => s.stepId === stepId);
+      return {
+        stepId,
+        label: step.label,
+        duration: step.duration,
+        unit: step.unit,
+        description: step.description,
+        isComplete: false,
+        startDate: new Date(),
+        progress: 0
+      };
+    });
+
+    const vintageToAdd = {
+      vintageId: Date.now(), // identifiant unique temporaire
+      productorId: "P001",
+      label: newVintage.label,
+      quality: newVintage.quality,
+      createdAt: new Date(),
+      ingredients: newVintage.selectedIngredients.map(id =>
+        ingredients.find(ing => ing.ingredientId === id)
+      ),
+      steps: newVintageSteps,
+      isComplete: false
+    };
+
+    setTimeout(() => {
+      setVintages([...vintages, vintageToAdd]);
+      setNewVintage({
+        label: '',
+        quality: 'Standard',
+        selectedIngredients: [],
+        selectedSteps: []
+      });
+      setActiveTab('vintages');
+      setIsCreating(false);
+    }, 500); // petite animation de chargement
+  };
+
+  const calculateVintageProgress = (vintage) => {
+    if (vintage.isComplete) return 100;
+    if (vintage.steps.length === 0) return 0;
+
+    const completedSteps = vintage.steps.filter(step => step.isComplete).length;
+    let progress = (completedSteps / vintage.steps.length) * 100;
+
+    if (completedSteps < vintage.steps.length) {
+      const currentStep = vintage.steps.find(step => !step.isComplete);
+      if (currentStep) {
+        const daysPassed = Math.floor((currentTime - new Date(currentStep.startDate)) / (1000 * 60 * 60 * 24));
+        const stepProgress = Math.min(100, (daysPassed / currentStep.duration) * 100);
+        const stepWeight = 1 / vintage.steps.length;
+        progress += stepProgress * stepWeight;
+      }
     }
 
-    setNewVintage({ label: "", quality: "" });
+    return Math.min(100, Math.round(progress));
   };
 
-  const supprimerVintage = (id) => {
-    setVintages(vintages.filter((v) => v.vintageId !== id));
-    if (editingId === id) {
-      setEditingId(null);
-      setNewVintage({ label: "", quality: "" });
-    }
-  };
-
-  const modifierVintage = (vintage) => {
-    setNewVintage({ label: vintage.label, quality: vintage.quality });
-    setEditingId(vintage.vintageId);
-  };
-
-  const filteredVintages = vintages.filter((v) =>
-    v.label.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredVintages = vintages.filter(v =>
+    v.label.toLowerCase().includes(searchVintageTerm.toLowerCase())
   );
 
   return (
-    <div className="w-full h-full px-6 py-4 bg-gray-50 max-w-none">
-      <h1 className="text-2xl font-extrabold text-red-900 mb-6">
-        Gestion des Cuvées de Vin
-      </h1>
+    <div className="flex flex-col min-h-screen">
+      <header className="p-6 text-white">
+        <h1 className="text-2xl font-extrabold text-red-900">Gestion des Cuvées de Vin</h1>
+        <div className="mt-4">
+          <SearchInput onChange={setSearchVintageTerm} />
+        </div>
+      </header>
 
-      {/* Barre de recherche */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Rechercher un ingrédient..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/2 p-3 border border-red-200 rounded focus:outline-none focus:ring focus:ring-red-200"
-        />
-      </div>
-
-      {/* Formulaire d'ajout/modification */}
-      <div className="bg-white shadow-lg p-6 rounded-xl mb-6 border border-red-100">
-        <h2 className="font-semibold text-gray-700 mb-4 text-lg">
-          {editingId ? "Modifier la cuvée" : "Ajouter une cuvée"}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input
-            type="text"
-            placeholder="Nom de la cuvée"
-            value={newVintage.label}
-            onChange={(e) =>
-              setNewVintage({ ...newVintage, label: e.target.value })
-            }
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          />
-          <input
-            type="text"
-            placeholder="Qualité"
-            value={newVintage.quality}
-            onChange={(e) =>
-              setNewVintage({ ...newVintage, quality: e.target.value })
-            }
-            className="border p-3 rounded w-full focus:outline-none focus:ring focus:ring-red-200"
-          />
+      <div className="p-6">
+        <div className="flex space-x-4 mb-6">
           <button
-            onClick={ajouterOuModifierVintage}
-            className="bg-red-900 hover:bg-red-800 text-white px-4 py-3 rounded flex items-center justify-center w-full"
+            className={`px-5 py-2 rounded-full shadow transition ${
+              activeTab === 'vintages'
+                ? 'bg-red-700 text-white'
+                : 'bg-white border border-red-700 text-red-700 hover:bg-red-50'
+            }`}
+            onClick={() => setActiveTab('vintages')}
           >
-            <Plus size={18} className="mr-1" />
-            {editingId ? "Modifier" : "Ajouter"}
+            Voir les Cuvées
+          </button>
+          <button
+            className={`px-5 py-2 rounded-full shadow transition ${
+              activeTab === 'createVintage'
+                ? 'bg-red-700 text-white'
+                : 'bg-white border border-red-700 text-red-700 hover:bg-red-50'
+            }`}
+            onClick={() => setActiveTab('createVintage')}
+          >
+            Nouvelle Cuvée
           </button>
         </div>
-      </div>
 
-      {/* Tableau des cuvées */}
-      <div className="bg-white shadow-lg rounded-xl overflow-auto border border-red-100">
-        <table className="w-full table-auto text-sm">
-          <thead className="bg-red-900 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left">Nom</th>
-              <th className="px-4 py-3 text-left">Qualité</th>
-              <th className="px-4 py-3 text-left">Créée le</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredVintages.map((vintage) => (
-              <tr key={vintage.vintageId} className="border-b hover:bg-red-50">
-                <td className="px-4 py-3">{vintage.label}</td>
-                <td className="px-4 py-3">{vintage.quality}</td>
-                <td className="px-4 py-3">
-                  {new Date(vintage.createdAt).toLocaleDateString("fr-FR")}
-                </td>
-                <td className="px-4 py-3 text-right space-x-3">
-                  <button
-                    onClick={() => modifierVintage(vintage)}
-                    className="text-blue-600 hover:text-blue-800"
-                    title="Modifier"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => supprimerVintage(vintage.vintageId)}
-                    className="text-red-600 hover:text-red-800"
-                    title="Supprimer"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredVintages.length === 0 && (
-              <tr>
-                <td colSpan="4" className="text-center py-6 text-gray-400">
-                  Aucune cuvée trouvée.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="bg-white p-6 rounded-lg shadow-xl">
+          {activeTab === 'vintages' && (
+            <div>
+              <h2 className="text-2xl font-semibold mb-4">Cuvées en Production</h2>
+              {filteredVintages.length === 0 ? (
+                <p className="text-gray-500">Aucune cuvée trouvée.</p>
+              ) : (
+                <div className="space-y-6">
+                  {filteredVintages.map(vintage => (
+                    <div key={vintage.vintageId} className="border rounded-lg p-5 shadow-sm hover:shadow-md transition">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xl font-bold text-red-800">{vintage.label}</h3>
+                        <span className={`px-3 py-1 text-sm rounded-full ${
+                          vintage.isComplete ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {vintage.isComplete ? 'Terminée' : 'En cours'}
+                        </span>
+                      </div>
+                      <p className="text-gray-700">Qualité : <strong>{vintage.quality}</strong></p>
+                      <p className="text-gray-600">Créée le : {new Date(vintage.createdAt).toLocaleDateString()}</p>
+                      {vintage.isComplete && (
+                        <p className="text-gray-600">Terminée le : {new Date(vintage.completionDate).toLocaleDateString()}</p>
+                      )}
+
+                      <div className="mt-4">
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div
+                            className="bg-red-600 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${calculateVintageProgress(vintage)}%` }}
+                          />
+                        </div>
+                        <p className="text-sm text-right text-gray-500 mt-1">
+                          {calculateVintageProgress(vintage)}% terminé
+                        </p>
+                      </div>
+
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-red-700 mb-2">Étapes :</h4>
+                        <ul className="space-y-1">
+                          {vintage.steps.map((step, index) => (
+                            <li key={index} className="flex items-center text-gray-700">
+                              <span className={`inline-block w-3 h-3 rounded-full mr-2 ${
+                                step.isComplete ? 'bg-green-500' : 'bg-yellow-500'
+                              }`}></span>
+                              {step.label} ({step.duration} {step.unit})
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'createVintage' && (
+            <CreateVintage
+              newVintage={newVintage}
+              setNewVintage={setNewVintage}
+              ingredients={ingredients}
+              steps={steps}
+              qualityOptions={qualityOptions}
+              onSubmit={handleCreateVintage}
+              loading={isCreating}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
