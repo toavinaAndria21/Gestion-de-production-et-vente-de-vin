@@ -203,7 +203,7 @@ export default function Vintage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-xl">
-          {activeTab === 'vintages' && (
+        {activeTab === 'vintages' && (
             <div>
               <h2 className="text-2xl font-semibold mb-4">Cuvées en Production</h2>
               {filteredVintages.length === 0 ? (
@@ -223,7 +223,7 @@ export default function Vintage() {
                       <p className="text-gray-700">Qualité : <strong>{vintage.quality}</strong></p>
                       <p className="text-gray-600">Créée le : {new Date(vintage.createdAt).toLocaleDateString()}</p>
                       {vintage.isComplete && (
-                        <p className="text-gray-600">Terminée le : {new Date(vintage.completionDate).toLocaleDateString()}</p>
+                        <p className="text-gray-600">Terminée le : {new Date(vintage.completedAt).toLocaleDateString()}</p>
                       )}
 
                       <div className="mt-4">
@@ -240,16 +240,65 @@ export default function Vintage() {
 
                       <div className="mt-4">
                         <h4 className="font-semibold text-red-700 mb-2">Étapes :</h4>
-                        <ul className="space-y-1">
-                          {vintage.steps.map((step, index) => (
-                            <li key={index} className="flex items-center text-gray-700">
-                              <span className={`inline-block w-3 h-3 rounded-full mr-2 ${
-                                step.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                              }`}></span>
-                              {step.label} ({step.duration} {step.unit})
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="space-y-3">
+                          {vintage.steps.map((step, index) => {
+                            const isFirstPending = step.status === 'pending' && 
+                              vintage.steps.slice(0, index).every(s => s.status === 'completed');
+                            
+                            return (
+                              <div key={index} className="border border-gray-100 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span 
+                                      className={`inline-block w-3 h-3 rounded-full ${
+                                        step.status === 'completed' ? 'bg-green-500' : 
+                                        step.status === 'in-progress' ? 'bg-blue-500' : 'bg-gray-400'
+                                      }`}
+                                      style={{ backgroundColor: step.status === 'in-progress' ? step.color : undefined }}
+                                    ></span>
+                                    <span className="text-gray-700 font-medium">{step.label}</span>
+                                    <span className="text-gray-500 text-sm">({step.duration} {step.unit})</span>
+                                  </div>
+                                  
+                                  {isFirstPending && (
+                                    <button
+                                      onClick={() => startStep(vintage.vintageId, index)}
+                                      className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                                    >
+                                      <Play className="w-3 h-3" />
+                                      Commencer
+                                    </button>
+                                  )}
+                                </div>
+                                
+                                {step.status === 'in-progress' && (
+                                  <div className="mt-2">
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span>Temps restant: {formatTimeRemaining(step)}</span>
+                                      <span>{Math.round(step.progress)}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="h-2 rounded-full transition-all duration-300"
+                                        style={{ 
+                                          width: `${step.progress}%`,
+                                          backgroundColor: step.color
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {step.status === 'completed' && (
+                                  <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Terminée le {new Date(step.completedAt).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   ))}

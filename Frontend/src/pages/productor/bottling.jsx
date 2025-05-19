@@ -1,9 +1,6 @@
 import { useState } from "react";
-import { Plus, Calendar, Wine, Check, Search, DownloadCloud, X, Package, Tag, Hash } from "lucide-react";
+import { Plus, Calendar, Wine, Package, Tag } from "lucide-react";
 import DataTable from "../../components/newDataTable";
-import SearchInput from "../../components/searchInput";
-import BottlingForm from "../../components/bottlingForm";
-import ItemSelector from "../../components/itemSelector";
 
 export default function Bottling() {
   const [editData, setEditData] = useState(null);
