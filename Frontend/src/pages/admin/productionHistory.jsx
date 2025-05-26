@@ -61,7 +61,6 @@ export default function ProductionHistory() {
     <div className="p-6 max-w-6xl mx-auto bg-gray-50">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Historique de Production</h1>
 
-      {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Quantité totale produite</h3>
@@ -78,7 +77,6 @@ export default function ProductionHistory() {
         </div>
       </div>
 
-      {/* Tableau */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <h2 className="text-xl font-semibold p-4 border-b text-gray-800">Détail des productions</h2>
         <div className="overflow-x-auto">

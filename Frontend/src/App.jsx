@@ -9,6 +9,9 @@ import productorRoute from "./routes/productor";
 import SoadivayLoginForm from "./pages/Login";
 import { ToastProvider } from "./context/toastContext";
 import { AuthProvider } from "./context/authContext";
+import PrivateRoute from "./components/PrivateRoute";
+import NotFound from "./pages/NotFound";
+import Unauthorized from "./pages/Unauthorized";
 
 const router = createBrowserRouter([
   {
@@ -18,18 +21,38 @@ const router = createBrowserRouter([
   },
   {
     path: '/seller',
-    element: <SellerLayout />,
+    element: (
+      <PrivateRoute requiredRole="Vendeur">
+        <SellerLayout />
+      </PrivateRoute>
+    ),
     children: sellerRoute,
   },
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: (
+      <PrivateRoute requiredRole="Administrateur">
+        <AdminLayout />
+      </PrivateRoute>
+    ),
     children: adminRoute,
   },
   {
     path: '/productor',
-    element: <ProductorLayout />,
+    element: (
+      <PrivateRoute requiredRole="Producteur">
+        <ProductorLayout />
+      </PrivateRoute>
+    ),
     children: productorRoute,
+  },
+  {
+    path: '/unauthorized',
+    element: <Unauthorized/>
+  },
+  {
+    path: '*',
+    element: <NotFound/>,
   }
 ]);
 

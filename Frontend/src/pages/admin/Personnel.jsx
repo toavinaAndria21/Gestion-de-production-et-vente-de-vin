@@ -17,7 +17,12 @@ export default function Personnel() {
     const { showSucces, showError, showAlert } = useToast();
     const [selectedPersonnel, setSelectedPersonnel] = useState(null);
     const [filterStatus, setFilterStatus] = useState('Actif');
-
+    
+    useEffect(()=>{
+        
+        getUsersList();
+      
+      },[])
 
     const columns = [
         {
@@ -70,7 +75,7 @@ export default function Personnel() {
                 className="px-2 py-1 text-xs text-red-600 border border-red-500 rounded hover:bg-red-50"
                 onClick={() => handleDelete(item)}
               >
-                Désactiver
+                { item.status === 'Actif' ? 'Désactiver' : 'Réactiver' }
               </button>
             </div>
           ),
@@ -86,12 +91,6 @@ export default function Personnel() {
         setData(data);
         setFilteredData(data);
       };
-
-      useEffect(()=>{
-        
-        getUsersList();
-        
-      },[])
 
       useEffect(() => {
         const result = data.filter((user) => {
@@ -261,7 +260,9 @@ export default function Personnel() {
                     </button>
                     </div>
                 </div>
+                
             <DataTable data={filteredData} columns={columns}/>
+
         </div>
         <PersonnelModal
             isOpen={isModalOpen}
