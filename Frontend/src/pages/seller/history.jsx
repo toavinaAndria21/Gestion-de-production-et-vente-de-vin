@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import SearchInput from '../../components/searchInput';
 import { API_URL } from '../../config/api';
-import DataTable from '../../components/DataTable';
+import DataTable from '../../components/dataTable';
 
 // Données de démonstration pour l'historique des paiements
 const columns = [

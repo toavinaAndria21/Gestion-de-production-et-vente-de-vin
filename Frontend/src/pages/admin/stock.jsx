@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import SearchInput from '../../components/searchInput';
-import DataTable from '../../components/DataTable';
+import DataTable from '../../components/dataTable';
 import { API_URL } from '../../config/api';
 
 export default function Stock() {

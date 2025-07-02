@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import DataTable from '../../components/DataTable';
+import DataTable from '../../components/dataTable';
 import { API_URL } from '../../config/api';
 
 export default function SellingHistory() {

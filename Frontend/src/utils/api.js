@@ -1,6 +1,7 @@
 
 export async function fetchAll(entity) {
   console.log("Appel de fetchAll avec entity :", entity); // ← doit s'afficher !
+  console.log("")
   const res = await fetch(`http://localhost:3000/${entity}`);
   //alert(JSON.stringify(res))
 
