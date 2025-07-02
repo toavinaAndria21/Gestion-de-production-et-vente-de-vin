@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import DataTable from '../../components/DataTable';
+import DataTable from '../../components/dataTable';
 
 export default function ProductionHistory() {
   const [modalOpen, setModalOpen] = useState(false);
