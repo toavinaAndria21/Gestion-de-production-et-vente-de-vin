@@ -5,8 +5,8 @@ export default function WineCardList({items, addToCart}) {
         { items.length > 0 ? (
         items.map((wine) => (
             <div key={wine.id} className="bg-white max-w-[250px] h-[280px] lg:h-80 rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden">
-              <div className="h-44 bg-gray-100 flex items-center justify-center text-4xl relative">
-                {wine.image}
+              <div className="h-44 bg-gray-100 flex items-center justify-center relative"
+                  style={{ backgroundImage: `url(${wine.image})`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover' }}>
                 <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium 
                   ${wine.stock === 0 
                     ? 'bg-red-100 text-red-800' 

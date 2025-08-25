@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { ProductController } from "../controller/product";
+import { upload } from "../middlewares/upload";
 
 const productRouter = Router();
 
 productRouter.get("/", ProductController.getAllProduct);
-productRouter.post("/", ProductController.createProduct);
+productRouter.post("/",upload.single("image"), ProductController.createProduct);
 productRouter.post("/sale", ProductController.sellingProduct)
 productRouter.put("/:id", ProductController.updateProduct);
 productRouter.delete("/:id", ProductController.deleteProduct);
