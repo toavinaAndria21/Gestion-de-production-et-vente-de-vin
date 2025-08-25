@@ -1,38 +1,40 @@
+import { API_URL } from "../config/api";
+
 
 export async function fetchAll(entity) {
   console.log("Appel de fetchAll avec entity :", entity); // ← doit s'afficher !
-  console.log("")
-  const res = await fetch(`http://localhost:3000/${entity}`);
-  //alert(JSON.stringify(res))
+  const res = await fetch(`${API_URL}/${entity}`);
+  // alert(JSON.stringify(res))
 
   const result = await res.json();
   return result.data;
 }
 
 export async function fetchById(entity, id) {
-  const res = await fetch(`http://localhost:3000/${entity}/${id}`);
+  const res = await fetch(`${API_URL}/${entity}/${id}`);
   if (!res.ok) throw new Error(`Erreur pour ${entity} ${id}`);
   return await res.json();
 }
 
 export async function create(entity, data) {
-  const res = await fetch(`http://localhost:3000/${entity}`, {
+  console.log(JSON.stringify(data))
+
+  const res = await fetch(`${API_URL}/${entity}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(data),
   });
-  // alert(JSON.stringify(res))
   if (!res.ok) throw new Error(`Erreur de création dans ${entity}`);
   const result = await res.json();
-  //alert(JSON.stringify(result))
+  alert(JSON.stringify(result))
   
   return result.data;
 }
 
 export async function update(entity, id, data) {
-  const res = await fetch(`http://localhost:3000/${entity}/${id}`, {
+  const res = await fetch(`${API_URL}/${entity}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -44,7 +46,7 @@ export async function update(entity, id, data) {
 }
 
 export async function remove(entity, id) {
-  const res = await fetch(`http://localhost:3000/${entity}/${id}`, {
+  const res = await fetch(`${API_URL}/${entity}/${id}`, {
     method: "DELETE",
   });
   // alert("remove: "+entity+" "+id+JSON.stringify(res))

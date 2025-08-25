@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import SearchInput from '../../components/searchInput';
 import CreateVintage from '../../components/createVintage';
-import { fetchAll } from '../../utils/api';
+import { fetchAll, create, update } from '../../utils/api';
+import { AuthContext } from '../../context/authContext';
+import { useToast } from '../../context/toastContext';
+import { Play, Pause, Square, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 const DurationUnit = {
   DAYS: 'jours',
@@ -12,7 +15,25 @@ const DurationUnit = {
 
 const qualityOptions = ['Standard', 'Premium', 'Excellente', 'Bio', 'Nature'];
 
+// États possibles d'une cuvée
+const VintageStatus = {
+  PENDING: 'pending',     // En attente de démarrage
+  RUNNING: 'running',     // En cours
+  PAUSED: 'paused',       // En pause
+  COMPLETED: 'completed'  // Terminée
+};
+
+// États possibles d'une étape
+const StepStatus = {
+  WAITING: 'waiting',     // En attente
+  RUNNING: 'running',     // En cours
+  PAUSED: 'paused',       // En pause
+  COMPLETED: 'completed'  // Terminée
+};
+
 export default function Vintage() {
+  const { user } = useContext(AuthContext);
+  const { showSucces, showError } = useToast();
   const [ingredients, setIngredients] = useState([]);
   const [steps, setSteps] = useState([]);
   const [vintages, setVintages] = useState([]);
@@ -23,8 +44,7 @@ export default function Vintage() {
     selectedIngredients: [],
     selectedSteps: []
   });
-  const [simulationSpeed, setSimulationSpeed] = useState(1);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [simulationSpeed, setSimulationSpeed] = useState(1); // 1 = temps réel, 60 = 1 minute = 1 heure
   const [searchVintageTerm, setSearchVintageTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -33,50 +53,285 @@ export default function Vintage() {
       try {
         const ingredientsData = await fetchAll("ingredient");
         const stepsData = await fetchAll("step");
+        const vintagesData = await fetchAll("vintage");
+        
+        // Initialiser les états des cuvées si nécessaire
+        const vintagesWithStatus = vintagesData.map(vintage => ({
+          ...vintage,
+          status: vintage.status || (vintage.isComplete ? VintageStatus.COMPLETED : VintageStatus.PENDING),
+          steps: vintage.steps?.map((step, index) => ({
+            ...step,
+            status: step.status || StepStatus.WAITING,
+            progress: step.progress || 0,
+            startTime: step.startTime || null,
+            pausedDuration: step.pausedDuration || 0,
+            estimatedEndTime: step.estimatedEndTime || null
+          })) || []
+        }));
+        
         setIngredients(ingredientsData);
         setSteps(stepsData);
+        setVintages(vintagesWithStatus);
       } catch (error) {
         console.error("Erreur lors du chargement des données :", error);
+        showError("Erreur lors du chargement des données");
       }
     };
     fetchData();
   }, []);
 
+  // Système de progression en temps réel
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(prevTime => {
-        const newTime = new Date(prevTime);
-        newTime.setDate(newTime.getDate() + 1 * simulationSpeed);
-        return newTime;
-      });
-
       setVintages(prevVintages =>
         prevVintages.map(vintage => {
-          if (!vintage.isComplete) {
-            const updatedSteps = vintage.steps.map(step => {
-              if (!step.isComplete) {
-                const daysPassed = Math.floor((currentTime - new Date(step.startDate)) / (1000 * 60 * 60 * 24 * (1 / simulationSpeed)));
-                if (daysPassed >= step.duration) {
-                  return { ...step, isComplete: true, endDate: new Date() };
-                }
-                return step;
+          if (vintage.status !== VintageStatus.RUNNING) return vintage;
+
+          const updatedSteps = vintage.steps.map(step => {
+            if (step.status === StepStatus.RUNNING) {
+              const now = Date.now();
+              const elapsed = now - step.startTime - step.pausedDuration;
+              const totalDuration = convertDurationToMs(step.step.duration, step.step.unit);
+              const progress = Math.min(100, (elapsed / totalDuration) * 100);
+
+              if (progress >= 100) {
+                return {
+                  ...step,
+                  status: StepStatus.COMPLETED,
+                  progress: 100,
+                  endTime: now
+                };
               }
-              return step;
-            });
-            const allStepsComplete = updatedSteps.every(step => step.isComplete);
-            return {
-              ...vintage,
-              steps: updatedSteps,
-              isComplete: allStepsComplete,
-              completionDate: allStepsComplete ? new Date() : null
+
+              return {
+                ...step,
+                progress,
+                estimatedEndTime: step.startTime + totalDuration + step.pausedDuration
+              };
+            }
+            return step;
+          });
+
+          // Démarrer l'étape suivante automatiquement
+          const currentStepIndex = updatedSteps.findIndex(step => step.status === StepStatus.RUNNING);
+          const nextStepIndex = updatedSteps.findIndex(step => step.status === StepStatus.WAITING);
+          
+          if (currentStepIndex === -1 && nextStepIndex !== -1) {
+            updatedSteps[nextStepIndex] = {
+              ...updatedSteps[nextStepIndex],
+              status: StepStatus.RUNNING,
+              startTime: Date.now()
             };
           }
-          return vintage;
+
+          // Vérifier si toutes les étapes sont terminées
+          const allStepsComplete = updatedSteps.every(step => step.status === StepStatus.COMPLETED);
+          const vintageStatus = allStepsComplete ? VintageStatus.COMPLETED : vintage.status;
+
+          return {
+            ...vintage,
+            steps: updatedSteps,
+            status: vintageStatus,
+            isComplete: allStepsComplete
+          };
         })
       );
-    }, 1000);
+    }, 100 * simulationSpeed); // Plus fréquent pour une progression fluide
+
     return () => clearInterval(interval);
-  }, [simulationSpeed, currentTime]);
+  }, [simulationSpeed]);
+
+  // Convertir la durée en millisecondes
+  const convertDurationToMs = (duration, unit) => {
+    const multipliers = {
+      'minutes': 60 * 1000,
+      'heures': 60 * 60 * 1000,
+      'jours': 24 * 60 * 60 * 1000
+    };
+    return duration * (multipliers[unit] || multipliers['heures']) / simulationSpeed;
+  };
+
+  // Démarrer une cuvée
+  const startVintage = async (vintageId) => {
+    try {
+      const updatedVintages = vintages.map(vintage => {
+        if (vintage.vintageId === vintageId) {
+          const updatedSteps = vintage.steps.map((step, index) => {
+            if (index === 0) {
+              return {
+                ...step,
+                status: StepStatus.RUNNING,
+                startTime: Date.now()
+              };
+            }
+            return step;
+          });
+
+          return {
+            ...vintage,
+            status: VintageStatus.RUNNING,
+            steps: updatedSteps
+          };
+        }
+        return vintage;
+      });
+      
+      setVintages(updatedVintages);
+      showSucces("Production démarrée !");
+    } catch (error) {
+      showError("Erreur lors du démarrage");
+    }
+  };
+
+  // Mettre en pause une cuvée
+  const pauseVintage = async (vintageId) => {
+    try {
+      const updatedVintages = vintages.map(vintage => {
+        if (vintage.vintageId === vintageId) {
+          const updatedSteps = vintage.steps.map(step => {
+            if (step.status === StepStatus.RUNNING) {
+              return {
+                ...step,
+                status: StepStatus.PAUSED,
+                pausedAt: Date.now()
+              };
+            }
+            return step;
+          });
+
+          return {
+            ...vintage,
+            status: VintageStatus.PAUSED,
+            steps: updatedSteps
+          };
+        }
+        return vintage;
+      });
+      
+      setVintages(updatedVintages);
+      showSucces("Production mise en pause");
+    } catch (error) {
+      showError("Erreur lors de la mise en pause");
+    }
+  };
+
+  // Reprendre une cuvée
+  const resumeVintage = async (vintageId) => {
+    try {
+      const updatedVintages = vintages.map(vintage => {
+        if (vintage.vintageId === vintageId) {
+          const updatedSteps = vintage.steps.map(step => {
+            if (step.status === StepStatus.PAUSED) {
+              const pauseDuration = Date.now() - step.pausedAt;
+              return {
+                ...step,
+                status: StepStatus.RUNNING,
+                pausedDuration: (step.pausedDuration || 0) + pauseDuration,
+                pausedAt: null
+              };
+            }
+            return step;
+          });
+
+          return {
+            ...vintage,
+            status: VintageStatus.RUNNING,
+            steps: updatedSteps
+          };
+        }
+        return vintage;
+      });
+      
+      setVintages(updatedVintages);
+      showSucces("Production reprise !");
+    } catch (error) {
+      showError("Erreur lors de la reprise");
+    }
+  };
+
+  // Arrêter une cuvée
+  const stopVintage = async (vintageId) => {
+    try {
+      const updatedVintages = vintages.map(vintage => {
+        if (vintage.vintageId === vintageId) {
+          const updatedSteps = vintage.steps.map(step => ({
+            ...step,
+            status: step.status === StepStatus.COMPLETED ? StepStatus.COMPLETED : StepStatus.WAITING,
+            progress: step.status === StepStatus.COMPLETED ? step.progress : 0,
+            startTime: null,
+            pausedDuration: 0,
+            pausedAt: null
+          }));
+
+          return {
+            ...vintage,
+            status: VintageStatus.PENDING,
+            steps: updatedSteps
+          };
+        }
+        return vintage;
+      });
+      
+      setVintages(updatedVintages);
+      showSucces("Production arrêtée");
+    } catch (error) {
+      showError("Erreur lors de l'arrêt");
+    }
+  };
+
+  // Calculer le temps restant estimé
+  const getEstimatedTimeRemaining = (vintage) => {
+    if (vintage.status === VintageStatus.COMPLETED) return "Terminé";
+    if (vintage.status === VintageStatus.PENDING) return "Non démarré";
+
+    const runningStep = vintage.steps.find(step => step.status === StepStatus.RUNNING);
+    if (!runningStep) return "En pause";
+
+    const remaining = runningStep.estimatedEndTime - Date.now();
+    if (remaining <= 0) return "Bientôt terminé";
+
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) return `${hours}h ${minutes}m restantes`;
+    return `${minutes}m restantes`;
+  };
+
+  // Calculer la progression globale
+  const calculateOverallProgress = (vintage) => {
+    if (vintage.steps.length === 0) return 0;
+    
+    const totalProgress = vintage.steps.reduce((sum, step) => sum + step.progress, 0);
+    return Math.round(totalProgress / vintage.steps.length);
+  };
+
+  // Obtenir l'icône de statut
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case StepStatus.COMPLETED: return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case StepStatus.RUNNING: return <Clock className="w-4 h-4 text-blue-500 animate-spin" />;
+      case StepStatus.PAUSED: return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      default: return <div className="w-4 h-4 rounded-full bg-gray-300"></div>;
+    }
+  };
+
+  const reloadIngredients = async () => {
+    try {
+      const ingredientsData = await fetchAll("ingredient");
+      setIngredients(ingredientsData);
+    } catch (error) {
+      console.error("Erreur lors du rechargement des ingrédients :", error);
+    }
+  };
+
+  const reloadVintages = async () => {
+    try {
+      const vintagesData = await fetchAll("vintage");
+      setVintages(vintagesData);
+    } catch (error) {
+      console.error("Erreur lors du rechargement des cuvées :", error);
+    }
+  };
 
   const isValidVintageName = (name) => {
     const trimmed = name.trim();
@@ -88,81 +343,50 @@ export default function Vintage() {
       return "Une cuvée avec ce nom existe déjà.";
     }
   
-    return null; // valide
+    return null;
   };
   
-  const handleCreateVintage = () => {
-    const validationMessage = isValidVintageName(newVintage.label);
-    if (validationMessage) {
-      alert(validationMessage);
-      return;
-    }
-    if (newVintage.selectedIngredients.length === 0 || newVintage.selectedSteps.length === 0) {
-      alert("Veuillez sélectionner au moins un ingrédient et une étape.");
-      return;
-    }
-    
-
+  const handleCreateVintage = async (vintageData) => {
     setIsCreating(true);
 
-    const newVintageSteps = newVintage.selectedSteps.map(stepId => {
-      const step = steps.find(s => s.stepId === stepId);
-      return {
-        stepId,
-        label: step.label,
-        duration: step.duration,
-        unit: step.unit,
-        description: step.description,
-        isComplete: false,
-        startDate: new Date(),
-        progress: 0
+    try {
+      const validationMessage = isValidVintageName(vintageData.label);
+      if (validationMessage) {
+        showError(validationMessage);
+        setIsCreating(false);
+        return;
+      }
+
+      const finalVintageData = {
+        ...vintageData,
+        productorId: "234234234234"
       };
-    });
+      
+      console.log("Données à envoyer:", finalVintageData);
+      
+      const createdVintage = await create("vintage", finalVintageData);
+      
+      await Promise.all([
+        reloadIngredients(),
+        reloadVintages()
+      ]);
 
-    const vintageToAdd = {
-      vintageId: Date.now(), // identifiant unique temporaire
-      productorId: "P001",
-      label: newVintage.label,
-      quality: newVintage.quality,
-      createdAt: new Date(),
-      ingredients: newVintage.selectedIngredients.map(id =>
-        ingredients.find(ing => ing.ingredientId === id)
-      ),
-      steps: newVintageSteps,
-      isComplete: false
-    };
-
-    setTimeout(() => {
-      setVintages([...vintages, vintageToAdd]);
       setNewVintage({
         label: '',
         quality: 'Standard',
         selectedIngredients: [],
         selectedSteps: []
       });
+
       setActiveTab('vintages');
+      showSucces("Cuvée créée avec succès !");
+
+    } catch (error) {
+      console.error("Erreur lors de la création de la cuvée :", error);
+      showError("Erreur lors de la création de la cuvée");
+    } finally {
       setIsCreating(false);
-    }, 500); // petite animation de chargement
-  };
-
-  const calculateVintageProgress = (vintage) => {
-    if (vintage.isComplete) return 100;
-    if (vintage.steps.length === 0) return 0;
-
-    const completedSteps = vintage.steps.filter(step => step.isComplete).length;
-    let progress = (completedSteps / vintage.steps.length) * 100;
-
-    if (completedSteps < vintage.steps.length) {
-      const currentStep = vintage.steps.find(step => !step.isComplete);
-      if (currentStep) {
-        const daysPassed = Math.floor((currentTime - new Date(currentStep.startDate)) / (1000 * 60 * 60 * 24));
-        const stepProgress = Math.min(100, (daysPassed / currentStep.duration) * 100);
-        const stepWeight = 1 / vintage.steps.length;
-        progress += stepProgress * stepWeight;
-      }
     }
-
-    return Math.min(100, Math.round(progress));
   };
 
   const filteredVintages = vintages.filter(v =>
@@ -173,8 +397,20 @@ export default function Vintage() {
     <div className="flex flex-col min-h-screen">
       <header className="p-6 text-white">
         <h1 className="text-2xl font-extrabold text-red-900">Gestion des Cuvées de Vin</h1>
-        <div className="mt-4">
+        <div className="mt-4 flex gap-4 items-center">
           <SearchInput onChange={setSearchVintageTerm} />
+          <div className="flex items-center gap-2 text-red-900">
+            <label className="text-sm font-medium">Vitesse:</label>
+            <select 
+              value={simulationSpeed} 
+              onChange={(e) => setSimulationSpeed(Number(e.target.value))}
+              className="px-2 py-1 rounded border text-gray-800"
+            >
+              <option value={1}>Temps réel</option>
+              <option value={60}>1 min = 1h</option>
+              <option value={1440}>1 min = 1 jour</option>
+            </select>
+          </div>
         </div>
       </header>
 
@@ -212,45 +448,141 @@ export default function Vintage() {
                 <div className="space-y-6">
                   {filteredVintages.map(vintage => (
                     <div key={vintage.vintageId} className="border rounded-lg p-5 shadow-sm hover:shadow-md transition">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-xl font-bold text-red-800">{vintage.label}</h3>
-                        <span className={`px-3 py-1 text-sm rounded-full ${
-                          vintage.isComplete ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {vintage.isComplete ? 'Terminée' : 'En cours'}
-                        </span>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-bold text-red-800">{vintage.label}</h3>
+                            <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                              vintage.status === VintageStatus.COMPLETED ? 'bg-green-100 text-green-800' :
+                              vintage.status === VintageStatus.RUNNING ? 'bg-blue-100 text-blue-800' :
+                              vintage.status === VintageStatus.PAUSED ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {vintage.status === VintageStatus.COMPLETED ? 'Terminée' :
+                               vintage.status === VintageStatus.RUNNING ? 'En cours' :
+                               vintage.status === VintageStatus.PAUSED ? 'En pause' :
+                               'En attente'}
+                            </span>
+                          </div>
+                          <p className="text-gray-700">Qualité : <strong>{vintage.quality}</strong></p>
+                          <p className="text-gray-600">Créée le : {new Date(vintage.createdAt).toLocaleDateString()}</p>
+                          <p className="text-gray-600 text-sm">{getEstimatedTimeRemaining(vintage)}</p>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          {vintage.status === VintageStatus.PENDING && (
+                            <button
+                              onClick={() => startVintage(vintage.vintageId)}
+                              className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                              title="Démarrer la production"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {vintage.status === VintageStatus.RUNNING && (
+                            <button
+                              onClick={() => pauseVintage(vintage.vintageId)}
+                              className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+                              title="Mettre en pause"
+                            >
+                              <Pause className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {vintage.status === VintageStatus.PAUSED && (
+                            <button
+                              onClick={() => resumeVintage(vintage.vintageId)}
+                              className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                              title="Reprendre la production"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {(vintage.status === VintageStatus.RUNNING || vintage.status === VintageStatus.PAUSED) && (
+                            <button
+                              onClick={() => stopVintage(vintage.vintageId)}
+                              className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                              title="Arrêter la production"
+                            >
+                              <Square className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-gray-700">Qualité : <strong>{vintage.quality}</strong></p>
-                      <p className="text-gray-600">Créée le : {new Date(vintage.createdAt).toLocaleDateString()}</p>
-                      {vintage.isComplete && (
-                        <p className="text-gray-600">Terminée le : {new Date(vintage.completionDate).toLocaleDateString()}</p>
-                      )}
 
-                      <div className="mt-4">
+                      {/* Barre de progression globale */}
+                      <div className="mb-4">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">Progression globale</span>
+                          <span className="text-sm text-gray-500">{calculateOverallProgress(vintage)}%</span>
+                        </div>
                         <div className="w-full bg-gray-200 rounded-full h-3">
                           <div
-                            className="bg-red-600 h-3 rounded-full transition-all duration-500"
-                            style={{ width: `${calculateVintageProgress(vintage)}%` }}
+                            className={`h-3 rounded-full transition-all duration-300 ${
+                              vintage.status === VintageStatus.COMPLETED ? 'bg-green-500' :
+                              vintage.status === VintageStatus.RUNNING ? 'bg-blue-500' :
+                              vintage.status === VintageStatus.PAUSED ? 'bg-yellow-500' :
+                              'bg-gray-400'
+                            }`}
+                            style={{ width: `${calculateOverallProgress(vintage)}%` }}
                           />
                         </div>
-                        <p className="text-sm text-right text-gray-500 mt-1">
-                          {calculateVintageProgress(vintage)}% terminé
-                        </p>
                       </div>
 
-                      <div className="mt-4">
-                        <h4 className="font-semibold text-red-700 mb-2">Étapes :</h4>
-                        <ul className="space-y-1">
-                          {vintage.steps.map((step, index) => (
-                            <li key={index} className="flex items-center text-gray-700">
-                              <span className={`inline-block w-3 h-3 rounded-full mr-2 ${
-                                step.isComplete ? 'bg-green-500' : 'bg-yellow-500'
-                              }`}></span>
-                              {step.label} ({step.duration} {step.unit})
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      {/* Détails des étapes */}
+                      {vintage.steps && vintage.steps.length > 0 && (
+                        <div className="mt-4">
+                          <h4 className="font-semibold text-red-700 mb-3">Étapes détaillées :</h4>
+                          <div className="space-y-3">
+                            {vintage.steps.map((vintageStep, index) => (
+                              <div key={index} className="bg-gray-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(vintageStep.status)}
+                                    <span className="font-medium text-gray-700">
+                                      {vintageStep.step?.label}
+                                    </span>
+                                    <span className="text-sm text-gray-500">
+                                      ({vintageStep.step?.duration} {vintageStep.step?.unit})
+                                    </span>
+                                  </div>
+                                  <span className="text-sm text-gray-500">
+                                    {Math.round(vintageStep.progress)}%
+                                  </span>
+                                </div>
+                                
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                      vintageStep.status === StepStatus.COMPLETED ? 'bg-green-500' :
+                                      vintageStep.status === StepStatus.RUNNING ? 'bg-blue-500' :
+                                      vintageStep.status === StepStatus.PAUSED ? 'bg-yellow-500' :
+                                      'bg-gray-300'
+                                    }`}
+                                    style={{ width: `${vintageStep.progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ingrédients utilisés */}
+                      {vintage.ingredients && vintage.ingredients.length > 0 && (
+                        <div className="mt-4">
+                          <h4 className="font-semibold text-red-700 mb-2">Ingrédients utilisés :</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {vintage.ingredients.map((vintageIngredient, index) => (
+                              <div key={index} className="text-sm text-gray-700 bg-gray-50 rounded px-2 py-1">
+                                {vintageIngredient.ingredient?.label}: {vintageIngredient.quantityUsed} {vintageIngredient.ingredient?.unit || 'kg'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -267,6 +599,10 @@ export default function Vintage() {
               qualityOptions={qualityOptions}
               onSubmit={handleCreateVintage}
               loading={isCreating}
+              onVintageCreated={() => {
+                reloadIngredients();
+                reloadVintages();
+              }}
             />
           )}
         </div>

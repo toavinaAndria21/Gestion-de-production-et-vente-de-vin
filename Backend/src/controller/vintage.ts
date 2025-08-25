@@ -5,12 +5,12 @@ export class VintageController {
     static async getAllVintage(req:Request, res:Response){
         try {
             const vintages = await VintageService.getAll();
-            if(!vintages || vintages.length === 0)
-                res.status(404).json(vintages)
+            if(!vintages)
+                res.status(404).json({message:"Erreur de recation", data: []})
             else
-                res.status(200).json(vintages)
+                res.status(200).json({message:"Cuvées recuperées avec succès", data: vintages})
         } catch (error) {
-            res.status(500).json({message:"Erreur de recuperation"});
+            res.status(500).json({message:"Erreur de recuperation", data: []});
         }
     }
 
@@ -32,8 +32,10 @@ export class VintageController {
 
     static async createVintage(req:Request, res:Response) {
         try {
+
             const newVintage = await VintageService.create(req.body);
-            res.status(201).json({message:"Cuvée crée avec succes", data:newVintage})
+
+            res.status(201).json({message:"Cuvée crée avec succes", data: newVintage})
         } catch (error) {
             res.status(500).json({message:"Erreur de creation de cuvée"});
         }

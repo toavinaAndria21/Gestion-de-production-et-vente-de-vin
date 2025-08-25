@@ -8,6 +8,7 @@ export default function CreateVintage({
   steps,
   qualityOptions,
   onSubmit,
+  onVintageCreated, // Nouvelle prop pour mettre à jour la liste des ingrédients
 }) {
   const [nameError, setNameError] = useState("");
   const { showSucces, showError, showAlert } = useToast();
@@ -97,7 +98,37 @@ export default function CreateVintage({
 
   const hasErrors = Object.keys(quantityErrors).length > 0 || !!nameError;
 
-  const handleSubmit = () => {
+  // Fonction pour transformer les données avant l'envoi à l'API
+  const prepareVintageData = () => {
+    return {
+      productorId: newVintage.productorId,
+      label: newVintage.label,
+      quality: newVintage.quality,
+      isComplete: newVintage.isComplete || false,
+      // Transformer selectedSteps en format attendu par l'API
+      steps: newVintage.selectedSteps.map(stepId => ({ stepId })),
+      // Transformer selectedIngredients en format attendu par l'API
+      ingredients: newVintage.selectedIngredients.map(ingredient => ({
+        ingredientId: ingredient.ingredientId,
+        quantityUsed: ingredient.quantity // Renommer quantity en quantityUsed
+      }))
+    };
+  };
+
+  // Fonction pour mettre à jour les quantités localement après création réussie
+  const updateLocalIngredientQuantities = () => {
+    newVintage.selectedIngredients.forEach(selectedIngredient => {
+      const ingredientIndex = ingredients.findIndex(
+        ing => ing.ingredientId === selectedIngredient.ingredientId
+      );
+      if (ingredientIndex !== -1) {
+        // Mettre à jour la quantité de l'ingrédient
+        ingredients[ingredientIndex].quantity -= selectedIngredient.quantity;
+      }
+    });
+  };
+
+  const handleSubmit = async () => {
     if (!newVintage.label.trim()) {
       showError("Le nom de la cuvée est requis.");
       return;
@@ -110,21 +141,35 @@ export default function CreateVintage({
       showError("Corrige les erreurs de quantités avant de continuer.");
       return;
     }
+    if (newVintage.selectedIngredients.length === 0) {
+      showError("Veuillez sélectionner au moins un ingrédient.");
+      return;
+    }
+    if (newVintage.selectedSteps.length === 0) {
+      showError("Veuillez sélectionner au moins une étape de vinification.");
+      return;
+    }
 
-    const vintageCopy = { ...newVintage }; // Pour annulation éventuelle
+    try {
+      const vintageData = prepareVintageData();
+      
+      // Appeler la fonction onSubmit avec les données formatées
+      await onSubmit(vintageData);
+      
+      // Mettre à jour les quantités localement
+      updateLocalIngredientQuantities();
+      
+      // Notifier le composant parent si nécessaire
+      if (onVintageCreated) {
+        onVintageCreated();
+      }
 
-    onSubmit();
-
-    showSucces("Cuvée créée avec succès !", {
-      action: {
-        label: "Annuler",
-        onClick: () => {
-          // Logique d'annulation possible ici si dispo
-          console.log("Création annulée :", vintageCopy);
-          showAlert("Création de la cuvée annulée.");
-        },
-      },
-    });
+      showSucces("Cuvée créée avec succès !");
+      
+    } catch (error) {
+      showError("Erreur lors de la création de la cuvée.");
+      console.error("Erreur:", error);
+    }
   };
 
   return (
@@ -196,7 +241,7 @@ export default function CreateVintage({
                       htmlFor={`ing-${ing.ingredientId}`}
                       className="block text-sm text-gray-900 w-48"
                     >
-                      {ing.label} ({ing.quantity} disponibles)
+                      {ing.label} ({ing.quantity} {ing.unit || 'kg'} disponibles)
                     </label>
                     {isSelected && (
                       <input
@@ -211,7 +256,7 @@ export default function CreateVintage({
                           )
                         }
                         className="w-28 p-1 border rounded"
-                        placeholder="Qté à prélever"
+                        placeholder="Qté à utiliser"
                       />
                     )}
                   </div>

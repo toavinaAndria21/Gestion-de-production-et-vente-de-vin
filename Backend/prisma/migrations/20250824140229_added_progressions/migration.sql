@@ -1,0 +1,24 @@
+-- CreateEnum
+CREATE TYPE "VintageStatus" AS ENUM ('PENDING', 'RUNNING', 'PAUSED', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "StepStatus" AS ENUM ('WAITING', 'RUNNING', 'PAUSED', 'COMPLETED', 'CANCELLED');
+
+-- AlterTable
+ALTER TABLE "Vintage" ADD COLUMN     "completedAt" TIMESTAMP(3),
+ADD COLUMN     "pausedAt" TIMESTAMP(3),
+ADD COLUMN     "progress" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "startedAt" TIMESTAMP(3),
+ADD COLUMN     "status" "VintageStatus" NOT NULL DEFAULT 'PENDING',
+ADD COLUMN     "totalPausedDuration" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "VintageStep" ADD COLUMN     "actualDuration" INTEGER,
+ADD COLUMN     "completedAt" TIMESTAMP(3),
+ADD COLUMN     "estimatedEndTime" TIMESTAMP(3),
+ADD COLUMN     "pausedAt" TIMESTAMP(3),
+ADD COLUMN     "progress" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "startedAt" TIMESTAMP(3),
+ADD COLUMN     "status" "StepStatus" NOT NULL DEFAULT 'WAITING',
+ADD COLUMN     "stepOrder" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "totalPausedDuration" INTEGER NOT NULL DEFAULT 0;

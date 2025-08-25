@@ -5,7 +5,7 @@ export class VintageStepController {
     static async getAllVintageStep(req:Request, res:Response){
         try {
             const vintageSteps = await VintageStepService.getAll();
-            if(!vintageSteps || vintageSteps.length === 0)
+            if(!vintageSteps)
                 res.status(404).json(vintageSteps)
             else
                 res.status(200).json(vintageSteps)

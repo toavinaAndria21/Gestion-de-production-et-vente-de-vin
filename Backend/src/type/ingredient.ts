@@ -8,3 +8,8 @@ export interface Ingredient {
   provider: string;
   createdAt?: Date; 
 }
+
+export interface IngredientUsed {
+  ingredientId: number;
+  quantityUsed: number;
+}

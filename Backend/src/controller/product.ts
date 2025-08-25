@@ -6,7 +6,7 @@ export class ProductController {
     static async getAllProduct(req:Request, res:Response){
         try {
             const products = await ProductService.getAll();
-            if(!products || products.length === 0)
+            if(!products)
                 res.status(404).json(products)
             else
                 res.status(200).json(products)
