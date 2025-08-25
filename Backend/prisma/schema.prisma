@@ -8,7 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -50,6 +49,14 @@ enum UserStatus {
   Actif
   Inactif
 }
+
+enum VintageStatus {
+  Created
+  Launched
+  Paused
+  Cancelled
+}
+
 model Personnel {
   personnelId String @id
   name String 
@@ -101,6 +108,8 @@ model Vintage {
   quality String
   createdAt DateTime @default(now())
   isComplete Boolean @default(false)
+  status VintageStatus @default(Created)
+  globalProgress Int @default(0)
 
   steps VintageStep[]
   ingredients VintageIngredient[]
@@ -111,6 +120,7 @@ model VintageStep {
   vintageStepId Int @id @default(autoincrement())
   stepId Int
   vintageId Int
+  progress Int @default(0)
   createdAt DateTime @default(now())
 
   step Step @relation(fields: [stepId], references: [stepId])

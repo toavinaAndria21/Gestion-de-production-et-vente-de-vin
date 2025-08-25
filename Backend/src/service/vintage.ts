@@ -109,7 +109,13 @@ export class VintageService {
             if(existingVintage){
                 const vintage = await prisma.vintage.update({
                     where:{ vintageId: id },
-                    data: { ...data }
+                    data: { 
+                      productorId: data.productorId,
+                      label: data.label,
+                      quality: data.quality,
+                      status: data.status,
+                      globalProgress: data.globalProgress
+                    }
                 })
                 return vintage;
             }else {
