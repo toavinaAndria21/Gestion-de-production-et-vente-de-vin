@@ -17,8 +17,7 @@ export default function Ingredients() {
   const [error, setError] = useState(null);
 
   const {user} = useContext(AuthContext);
-
-  // Chargement initial des données
+  console.log(JSON.stringify(user));
   useEffect(() => {
     loadIngredients();
   }, []);
@@ -47,7 +46,7 @@ export default function Ingredients() {
         // Mise à jour
         const updatedIngredient = await update("ingredient", editingItem.ingredientId, {
           ...formData,
-          productorId: user.id
+          productorId: user.personnelId
         });
         
         setIngredients(prev =>
@@ -59,7 +58,7 @@ export default function Ingredients() {
         // Création
         const newIngredient = await create("ingredient", {
           ...formData,
-          productorId: user.id 
+          productorId: user.personnelId 
         });
         
         setIngredients(prev => [...prev, newIngredient]);
