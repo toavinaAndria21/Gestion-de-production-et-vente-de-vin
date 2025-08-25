@@ -97,7 +97,8 @@ export class ProductController {
             res.status(201).json({ message: "Vente enregistrée avec succès", ticket });
           
         } catch (error) {
-            res.status(500).json({message: "Erreur lors de l'opération"})
+            res.status(500).json({message: "Erreur lors de l'opération"});
+            console.error(error)
         }
     }
 }
