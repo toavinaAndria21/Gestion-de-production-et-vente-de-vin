@@ -128,11 +128,24 @@ export class VintageService {
 
     static async delete(id:number) {
         try {
-            await prisma.vintage.delete({
-                where:{
-                    vintageId: id
-                }
-            })
+          
+           await prisma.vintageStep.deleteMany({
+             where:{
+                vintageId: id
+             }
+           })
+
+           await prisma.vintageIngredient.deleteMany({
+             where:{
+                vintageId: id
+             }
+           })
+
+          await prisma.vintage.delete({
+              where:{
+                  vintageId: id
+              }
+          })
             return;
         } catch (error) {
             throw new Error('Erreur lors de la suppresion');

@@ -29,11 +29,15 @@ export class personnelService {
     }
 
     static async login(email:string, password:string) {
+
+        console.log(email, " and ", password)
         const user = await prisma.personnel.findUnique({
             where: {
                 email: email,
             },
         });
+        console.log("1 ", email, " and ", password)
+
         if (!user) {
             throw new Error("User not found");
         }
@@ -42,11 +46,13 @@ export class personnelService {
         if (!isPasswordValid) {
             throw new Error("Invalid password");
         }
+        console.log("2 ",email, " and ", password)
 
         const secret = process.env.JWT_SECRET
         if (!secret) {
             throw new Error("JWT secret is not defined");
         }
+        console.log("3 ",email, " and ", password)
 
         const token = jwt.sign({
             personnelId: user.personnelId,

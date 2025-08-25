@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { API_URL } from "../../config/api";
+
 
 export default function VintageTrack() {
   const [cuvees, setCuvees] = useState([]);
@@ -6,7 +8,7 @@ export default function VintageTrack() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:4000/vintage")
+    fetch(`${API_URL}/vintage`)
       .then((res) => res.json())
       .then((res) => {
         setCuvees(res.data || []);
