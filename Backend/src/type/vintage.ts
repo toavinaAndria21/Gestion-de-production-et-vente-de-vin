@@ -1,5 +1,6 @@
 import { IngredientUsed } from "./ingredient";
 import { Step } from "./step";
+import { VintageStatus } from "@prisma/client";
 
 export interface Vintage {
     vintageId?: number,
@@ -7,6 +8,8 @@ export interface Vintage {
     label: string,
     quality: string,
     isComplete?: boolean,
+    status: VintageStatus,
+    globalProgress: number,
     createdAt?: Date,
 }
 export interface VintageToCreate {
@@ -15,6 +18,8 @@ export interface VintageToCreate {
     label: string,
     quality: string,
     isComplete?: boolean,
+    status: VintageStatus,
+    globalProgress: number,
     createdAt?: Date,
     steps: Step[],
     ingredients: IngredientUsed[] // Utilise IngredientUsed au lieu de Ingredient
