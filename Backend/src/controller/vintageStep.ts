@@ -29,7 +29,7 @@ export class VintageStepController {
     static async updateVintageStep(req:Request, res:Response) {
         try {
             const id:number = parseInt(req.params.id);
-            const { vintageId, stepId, createdAt } = req.body;
+            const { vintageId, stepId, progress } = req.body;
 
             if (!vintageId || !stepId ) {
                 res.status(400).json({ message: "Champs requis manquants" });
@@ -44,11 +44,11 @@ export class VintageStepController {
 
     static async createVintageStep(req:Request, res:Response) {
         try {
-            const { vintageId, stepId } = req.body;
+            const { vintageId, stepId, progress } = req.body;
             if (!vintageId || !stepId) {
                 res.status(400).json({ message: "Champs requis manquants" });
             }
-            const newVintageStep = await VintageStepService.create({vintageId, stepId});
+            const newVintageStep = await VintageStepService.create({vintageId, stepId, progress});
             res.status(201).json({message:"Etape de vinification crée avec succes", data:newVintageStep})
         } catch (error) {
             res.status(500).json({message:"Erreur de creation d'étape de vinification"});
