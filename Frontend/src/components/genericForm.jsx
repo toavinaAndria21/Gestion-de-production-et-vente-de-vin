@@ -27,8 +27,20 @@ const fieldConfigs = {
         min: 0,
         step: 0.01,
         max: 999999.99
-      },
-      suffix: "kg"
+      }
+    },
+    {
+      key: "unit",
+      label: "Unité",
+      type: "simple-select",
+      required: true,
+      options: [
+        { value: "kg", label: "Kilogrammes" },
+        { value: "g", label: "Grammes" },
+        { value: "L", label: "Litres" },
+        { value: "ml", label: "Millilitres" },
+        { value: "unité", label: "Unités" }
+      ]
     },
     {
       key: "threshold",
@@ -40,8 +52,7 @@ const fieldConfigs = {
         min: 0,
         step: 0.01,
         max: 999999.99
-      },
-      suffix: "kg"
+      }
     },
     {
       key: "provider",
@@ -81,7 +92,7 @@ const fieldConfigs = {
     {
       key: "unit",
       label: "Unité",
-      type: "select",
+      type: "simple-select",
       required: true,
       options: [
         { value: "minutes", label: "Minutes" },
@@ -101,30 +112,6 @@ const fieldConfigs = {
       }
     }
   ],
-  vintage: [
-    {
-      key: "label",
-      label: "Nom de la cuvée",
-      type: "text",
-      required: true,
-      placeholder: "Ex: Cuvée Prestige 2024",
-      validation: {
-        minLength: 2,
-        maxLength: 100
-      }
-    },
-    {
-      key: "quality",
-      label: "Qualité",
-      type: "select",
-      required: true,
-      options: [
-        { value: "STANDARD", label: "Standard" },
-        { value: "PREMIUM", label: "Premium" },
-        { value: "PRESTIGE", label: "Prestige" }
-      ]
-    }
-  ],
   ticket: [
     {
       key: "clientId",
@@ -137,7 +124,7 @@ const fieldConfigs = {
     {
       key: "state",
       label: "État",
-      type: "select",
+      type: "simple-select",
       required: true,
       options: [
         { value: "PENDING", label: "En attente" },
@@ -161,7 +148,7 @@ const GenericForm = ({
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  const [selectOptions, setSelectOptions] = useState({});
+  const [dynamicOptions, setDynamicOptions] = useState({});
 
   const fields = fieldConfigs[modelType] || [];
 
@@ -194,8 +181,8 @@ const GenericForm = ({
             
             // Pour l'exemple, on simule des données
             optionsToLoad[field.key] = [
-              { value: "1", label: "Option 1" },
-              { value: "2", label: "Option 2" }
+              { value: "1", label: "Client A" },
+              { value: "2", label: "Client B" }
             ];
           } catch (error) {
             console.error(`Erreur lors du chargement des options pour ${field.key}:`, error);
@@ -203,7 +190,7 @@ const GenericForm = ({
         }
       }
       
-      setSelectOptions(optionsToLoad);
+      setDynamicOptions(optionsToLoad);
     };
 
     loadSelectOptions();
@@ -309,9 +296,7 @@ const GenericForm = ({
   };
 
   // Soumission du formulaire
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = () => {
     // Marquer tous les champs comme touchés
     const allTouched = {};
     fields.forEach(field => {
@@ -367,8 +352,27 @@ const GenericForm = ({
             />
           );
 
+        case 'simple-select':
+          // Select simple avec les options statiques uniquement
+          return (
+            <select
+              value={value}
+              onChange={(e) => handleChange(key, e.target.value)}
+              onBlur={() => handleBlur(key)}
+              className={baseInputClass}
+            >
+              <option value="">Sélectionner...</option>
+              {options && options.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          );
+
         case 'select':
-          const selectOptions = options || selectOptions[key] || [];
+          // Select avec options dynamiques
+          const selectOptions = dynamicOptions[key] || [];
           return (
             <select
               value={value}
@@ -387,24 +391,17 @@ const GenericForm = ({
 
         case 'number':
           return (
-            <div className="relative">
-              <input
-                type="number"
-                value={value}
-                onChange={(e) => handleChange(key, e.target.value)}
-                onBlur={() => handleBlur(key)}
-                placeholder={placeholder}
-                step={field.validation?.step || 'any'}
-                min={field.validation?.min}
-                max={field.validation?.max}
-                className={baseInputClass}
-              />
-              {suffix && (
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                  {suffix}
-                </span>
-              )}
-            </div>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => handleChange(key, e.target.value)}
+              onBlur={() => handleBlur(key)}
+              placeholder={placeholder}
+              step={field.validation?.step || 'any'}
+              min={field.validation?.min}
+              max={field.validation?.max}
+              className={baseInputClass}
+            />
           );
 
         default:
@@ -447,7 +444,7 @@ const GenericForm = ({
           {isEditing ? `Modifier ${modelType}` : `Ajouter ${modelType}`}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {fields.map(renderField)}
           </div>
@@ -468,7 +465,8 @@ const GenericForm = ({
             )}
             
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="px-6 py-2 bg-red-900 hover:bg-red-800 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading}
             >
@@ -487,7 +485,7 @@ const GenericForm = ({
               </div>
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

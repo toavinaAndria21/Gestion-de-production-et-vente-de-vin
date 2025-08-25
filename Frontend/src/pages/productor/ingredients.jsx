@@ -56,7 +56,7 @@ export default function Ingredients() {
         // Création
         const newIngredient = await create("ingredient", {
           ...formData,
-          productorId: "123123123123" // ID du producteur (à adapter selon votre logique)
+          productorId: "123123123123"
         });
         
         setIngredients(prev => [...prev, newIngredient]);

@@ -7,6 +7,7 @@ export class IngredientService {
             const newIngredient = await prisma.ingredient.create({
                 data: ingredient,
             });
+
             return newIngredient;
         } catch (error) {
             throw new Error(`Erreur de creation de l'ingredient: ${error}`);

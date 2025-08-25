@@ -22,27 +22,27 @@ const router = createBrowserRouter([
   {
     path: '/seller',
     element: (
-      <PrivateRoute requiredRole="Vendeur">
+      // <PrivateRoute requiredRole="Vendeur">
         <SellerLayout />
-      </PrivateRoute>
+      // </PrivateRoute>
     ),
     children: sellerRoute,
   },
   {
     path: '/admin',
     element: (
-      <PrivateRoute requiredRole="Administrateur">
+      // <PrivateRoute requiredRole="Administrateur">
         <AdminLayout />
-      </PrivateRoute>
+      // </PrivateRoute>
     ),
     children: adminRoute,
   },
   {
     path: '/productor',
     element: (
-      <PrivateRoute requiredRole="Producteur">
+      // <PrivateRoute requiredRole="Producteur">
         <ProductorLayout />
-      </PrivateRoute>
+      // </PrivateRoute>
     ),
     children: productorRoute,
   },

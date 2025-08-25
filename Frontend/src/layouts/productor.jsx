@@ -1,5 +1,5 @@
 import Sidebar from "../components/sideBar";
-import {  Component, List, Users } from "lucide-react";
+import { Wheat, FlaskConical, Wine, Package } from "lucide-react";
 import { Outlet } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/authContext";
@@ -7,10 +7,10 @@ import { AuthContext } from "../context/authContext";
 export default function ProductorLayout() {
   const { user } = useContext(AuthContext);
   const menu = [
-    { name: "Ingrédients", path: "/productor/ingredients", icon: <Component size={18} /> },
-    { name: "Étapes de vinification", path: "/productor/steps", icon: <Component size={18} /> },
-    { name: "Cuvées de vins", path: "/productor/vintage", icon: <Component size={18} /> },
-    { name: "Mise en bouteilles", path: "/productor/bottling", icon: <Component size={18} /> },
+    { name: "Ingrédients", path: "/productor/ingredients", icon: <Wheat size={18} /> },
+    { name: "Étapes de vinification", path: "/productor/steps", icon: <FlaskConical size={18} /> },
+    { name: "Cuvées de vins", path: "/productor/vintage", icon: <Wine size={18} /> },
+    { name: "Mise en bouteilles", path: "/productor/bottling", icon: <Package size={18} /> },
   ];
 
   return (

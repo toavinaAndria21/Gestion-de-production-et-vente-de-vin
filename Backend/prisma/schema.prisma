@@ -20,6 +20,7 @@ enum Role {
   Vendeur
   Caissier
 }
+
 enum DurationUnit {
   minutes
   heures
@@ -76,6 +77,8 @@ model Ingredient {
   createdAt DateTime @default(now())
 
   productor Personnel @relation(fields: [productorId], references: [personnelId])
+  ingredients VintageIngredient[]
+
 }
 
 model Step {
@@ -97,8 +100,10 @@ model Vintage {
   label String
   quality String
   createdAt DateTime @default(now())
+  isComplete Boolean @default(false)
 
   steps VintageStep[]
+  ingredients VintageIngredient[]
   products Product[]
 }
 
@@ -112,6 +117,18 @@ model VintageStep {
   vintage Vintage @relation(fields: [vintageId], references: [vintageId]) 
   
   @@unique([vintageId, stepId])
+}
+model VintageIngredient {
+  vintageIngredientId Int @id @default(autoincrement())
+  ingredientId Int
+  vintageId Int
+  quantityUsed Float
+  createdAt DateTime @default(now())
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [ingredientId])
+  vintage Vintage @relation(fields: [vintageId], references: [vintageId]) 
+  
+  @@unique([vintageId, ingredientId])
 }
 
 model Product {
