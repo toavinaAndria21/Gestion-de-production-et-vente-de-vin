@@ -5,8 +5,8 @@ export class VintageController {
     static async getAllVintage(req:Request, res:Response){
         try {
             const vintages = await VintageService.getAll();
-            if(!vintages || vintages.length === 0)
-                res.status(404).json({message:"Erreur de recuperation", data: []})
+            if(!vintages)
+                res.status(404).json({message:"Erreur de recation", data: []})
             else
                 res.status(200).json({message:"Cuvées recuperées avec succès", data: vintages})
         } catch (error) {

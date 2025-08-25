@@ -3,9 +3,8 @@ import { API_URL } from "../config/api";
 
 export async function fetchAll(entity) {
   console.log("Appel de fetchAll avec entity :", entity); // ← doit s'afficher !
-  console.log("")
   const res = await fetch(`${API_URL}/${entity}`);
-  //alert(JSON.stringify(res))
+  // alert(JSON.stringify(res))
 
   const result = await res.json();
   return result.data;
@@ -29,7 +28,7 @@ export async function create(entity, data) {
   });
   if (!res.ok) throw new Error(`Erreur de création dans ${entity}`);
   const result = await res.json();
-  //alert(JSON.stringify(result))
+  alert(JSON.stringify(result))
   
   return result.data;
 }
