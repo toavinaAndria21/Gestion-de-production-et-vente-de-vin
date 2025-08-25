@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
-import { Search, Minus, Plus } from "lucide-react";
+import { useContext, useEffect, useState } from "react"
+import {  Minus, Plus } from "lucide-react";
 import WineCardList from "../../components/wineCard";
 import SearchInput from "../../components/searchInput";
 import { API_URL } from "../../config/api";
 import { useToast } from "../../context/toastContext";
+import { AuthContext } from "../../context/authContext";
 import '../../css/scrollBar.css';
 
 export default function Selling() {
@@ -16,7 +17,8 @@ export default function Selling() {
     const [wineList, setWineList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const { showSucces, showError, showAlert } = useToast();
-
+    const { user } = useContext(AuthContext);
+    console.log(user.personnelId)
     const getAllWines = async () => {
       try {
         const response = await fetch(`${API_URL}/product`);
@@ -129,7 +131,7 @@ export default function Selling() {
 
     const savePayment = async () => {
       try {
-        const sellerId = "313011044286";
+        const sellerId = user.personnelId;
         const products = panier.map(item => ({
           productId: item.id,
           quantity: item.stock,
@@ -139,7 +141,6 @@ export default function Selling() {
           sellerId,
           products,
         };
-    
         const response = await fetch(`${API_URL}/product/sale`, {
           method: "POST",
           headers: {
