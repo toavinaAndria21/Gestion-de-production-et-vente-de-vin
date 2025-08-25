@@ -1,10 +1,11 @@
 import { useState, useEffect, useContext } from 'react';
 import SearchInput from '../../components/searchInput';
 import CreateVintage from '../../components/createVintage';
-import { fetchAll, create, update } from '../../utils/api';
+import EditVintage from '../../components/editVintage';
+import { fetchAll, create, update, remove } from '../../utils/api';
 import { AuthContext } from '../../context/authContext';
 import { useToast } from '../../context/toastContext';
-import { Play, Pause, Square, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Play, Pause, Square, Clock, CheckCircle, AlertCircle, Edit, Trash2, X } from 'lucide-react';
 
 const DurationUnit = {
   DAYS: 'jours',
@@ -15,20 +16,20 @@ const DurationUnit = {
 
 const qualityOptions = ['Standard', 'Premium', 'Excellente', 'Bio', 'Nature'];
 
-// États possibles d'une cuvée
+// États possibles d'une cuvée selon le schéma Prisma
 const VintageStatus = {
-  PENDING: 'pending',     // En attente de démarrage
-  RUNNING: 'running',     // En cours
-  PAUSED: 'paused',       // En pause
-  COMPLETED: 'completed'  // Terminée
+  CREATED: 'Created',
+  LAUNCHED: 'Launched', 
+  PAUSED: 'Paused',
+  CANCELLED: 'Cancelled'
 };
 
-// États possibles d'une étape
-const StepStatus = {
-  WAITING: 'waiting',     // En attente
-  RUNNING: 'running',     // En cours
-  PAUSED: 'paused',       // En pause
-  COMPLETED: 'completed'  // Terminée
+// États pour l'interface utilisateur
+const UIStatus = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  COMPLETED: 'completed'
 };
 
 export default function Vintage() {
@@ -44,9 +45,12 @@ export default function Vintage() {
     selectedIngredients: [],
     selectedSteps: []
   });
-  const [simulationSpeed, setSimulationSpeed] = useState(1); // 1 = temps réel, 60 = 1 minute = 1 heure
+  const [editingVintage, setEditingVintage] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [simulationSpeed, setSimulationSpeed] = useState(1);
   const [searchVintageTerm, setSearchVintageTerm] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,17 +59,17 @@ export default function Vintage() {
         const stepsData = await fetchAll("step");
         const vintagesData = await fetchAll("vintage");
         
-        // Initialiser les états des cuvées si nécessaire
+        // Adapter les données pour l'interface
         const vintagesWithStatus = vintagesData.map(vintage => ({
           ...vintage,
-          status: vintage.status || (vintage.isComplete ? VintageStatus.COMPLETED : VintageStatus.PENDING),
-          steps: vintage.steps?.map((step, index) => ({
-            ...step,
-            status: step.status || StepStatus.WAITING,
-            progress: step.progress || 0,
-            startTime: step.startTime || null,
-            pausedDuration: step.pausedDuration || 0,
-            estimatedEndTime: step.estimatedEndTime || null
+          uiStatus: mapPrismaStatusToUI(vintage.status, vintage.isComplete),
+          globalProgress: vintage.globalProgress || 0,
+          steps: vintage.steps?.map((vintageStep) => ({
+            ...vintageStep,
+            uiStatus: calculateStepUIStatus(vintageStep.progress),
+            startTime: vintageStep.startTime || null,
+            pausedDuration: vintageStep.pausedDuration || 0,
+            estimatedEndTime: vintageStep.estimatedEndTime || null
           })) || []
         }));
         
@@ -80,66 +84,124 @@ export default function Vintage() {
     fetchData();
   }, []);
 
+  // Mapper les statuts Prisma vers les statuts UI
+  const mapPrismaStatusToUI = (prismaStatus, isComplete) => {
+    if (isComplete) return UIStatus.COMPLETED;
+    
+    switch (prismaStatus) {
+      case VintageStatus.CREATED:
+        return UIStatus.PENDING;
+      case VintageStatus.LAUNCHED:
+        return UIStatus.RUNNING;
+      case VintageStatus.PAUSED:
+        return UIStatus.PAUSED;
+      case VintageStatus.CANCELLED:
+        return UIStatus.PENDING;
+      default:
+        return UIStatus.PENDING;
+    }
+  };
+
+  // Calculer le statut UI d'une étape basé sur sa progression
+  const calculateStepUIStatus = (progress) => {
+    if (progress >= 100) return UIStatus.COMPLETED;
+    if (progress > 0) return UIStatus.RUNNING;
+    return UIStatus.PENDING;
+  };
+
   // Système de progression en temps réel
   useEffect(() => {
     const interval = setInterval(() => {
       setVintages(prevVintages =>
         prevVintages.map(vintage => {
-          if (vintage.status !== VintageStatus.RUNNING) return vintage;
+          if (vintage.uiStatus !== UIStatus.RUNNING) return vintage;
 
+          let hasChanges = false;
           const updatedSteps = vintage.steps.map(step => {
-            if (step.status === StepStatus.RUNNING) {
+            if (step.uiStatus === UIStatus.RUNNING && step.progress < 100) {
               const now = Date.now();
-              const elapsed = now - step.startTime - step.pausedDuration;
+              const elapsed = now - (step.startTime || now) - step.pausedDuration;
               const totalDuration = convertDurationToMs(step.step.duration, step.step.unit);
-              const progress = Math.min(100, (elapsed / totalDuration) * 100);
+              const newProgress = Math.min(100, (elapsed / totalDuration) * 100);
 
-              if (progress >= 100) {
+              if (newProgress !== step.progress) {
+                hasChanges = true;
                 return {
                   ...step,
-                  status: StepStatus.COMPLETED,
-                  progress: 100,
-                  endTime: now
+                  progress: newProgress,
+                  uiStatus: newProgress >= 100 ? UIStatus.COMPLETED : UIStatus.RUNNING,
+                  estimatedEndTime: step.startTime + totalDuration + step.pausedDuration
                 };
               }
-
-              return {
-                ...step,
-                progress,
-                estimatedEndTime: step.startTime + totalDuration + step.pausedDuration
-              };
             }
             return step;
           });
 
-          // Démarrer l'étape suivante automatiquement
-          const currentStepIndex = updatedSteps.findIndex(step => step.status === StepStatus.RUNNING);
-          const nextStepIndex = updatedSteps.findIndex(step => step.status === StepStatus.WAITING);
-          
-          if (currentStepIndex === -1 && nextStepIndex !== -1) {
-            updatedSteps[nextStepIndex] = {
-              ...updatedSteps[nextStepIndex],
-              status: StepStatus.RUNNING,
-              startTime: Date.now()
+          if (hasChanges) {
+            // Démarrer l'étape suivante si l'actuelle est terminée
+            const currentStepIndex = updatedSteps.findIndex(step => step.uiStatus === UIStatus.RUNNING);
+            const nextStepIndex = updatedSteps.findIndex(step => step.uiStatus === UIStatus.PENDING);
+            
+            if (currentStepIndex === -1 && nextStepIndex !== -1) {
+              updatedSteps[nextStepIndex] = {
+                ...updatedSteps[nextStepIndex],
+                uiStatus: UIStatus.RUNNING,
+                startTime: Date.now()
+              };
+            }
+
+            // Calculer la progression globale
+            const totalProgress = updatedSteps.reduce((sum, step) => sum + step.progress, 0);
+            const globalProgress = Math.round(totalProgress / updatedSteps.length);
+
+            // Vérifier si toutes les étapes sont terminées
+            const allStepsComplete = updatedSteps.every(step => step.progress >= 100);
+            const newUIStatus = allStepsComplete ? UIStatus.COMPLETED : vintage.uiStatus;
+
+            // Sauvegarder en base de données de façon asynchrone
+            if (globalProgress !== vintage.globalProgress) {
+              updateVintageProgress(vintage.vintageId, globalProgress, allStepsComplete, updatedSteps);
+            }
+
+            return {
+              ...vintage,
+              steps: updatedSteps,
+              uiStatus: newUIStatus,
+              globalProgress,
+              isComplete: allStepsComplete
             };
           }
 
-          // Vérifier si toutes les étapes sont terminées
-          const allStepsComplete = updatedSteps.every(step => step.status === StepStatus.COMPLETED);
-          const vintageStatus = allStepsComplete ? VintageStatus.COMPLETED : vintage.status;
-
-          return {
-            ...vintage,
-            steps: updatedSteps,
-            status: vintageStatus,
-            isComplete: allStepsComplete
-          };
+          return vintage;
         })
       );
-    }, 100 * simulationSpeed); // Plus fréquent pour une progression fluide
+    }, 100 * simulationSpeed);
 
     return () => clearInterval(interval);
   }, [simulationSpeed]);
+
+  // Fonction pour sauvegarder la progression en base
+  const updateVintageProgress = async (vintageId, globalProgress, isComplete, steps) => {
+    try {
+      // Mettre à jour la progression globale de la cuvée
+      await update("vintage", vintageId, {
+        globalProgress,
+        isComplete,
+        status: isComplete ? VintageStatus.CREATED : VintageStatus.LAUNCHED
+      });
+
+      // Mettre à jour la progression de chaque étape
+      for (const step of steps) {
+        if (step.vintageStepId) {
+          await update("vintageStep", step.vintageStepId, {
+            progress: Math.round(step.progress)
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde de la progression :", error);
+    }
+  };
 
   // Convertir la durée en millisecondes
   const convertDurationToMs = (duration, unit) => {
@@ -154,13 +216,17 @@ export default function Vintage() {
   // Démarrer une cuvée
   const startVintage = async (vintageId) => {
     try {
+      await update("vintage", vintageId, {
+        status: VintageStatus.LAUNCHED
+      });
+
       const updatedVintages = vintages.map(vintage => {
         if (vintage.vintageId === vintageId) {
           const updatedSteps = vintage.steps.map((step, index) => {
             if (index === 0) {
               return {
                 ...step,
-                status: StepStatus.RUNNING,
+                uiStatus: UIStatus.RUNNING,
                 startTime: Date.now()
               };
             }
@@ -169,7 +235,8 @@ export default function Vintage() {
 
           return {
             ...vintage,
-            status: VintageStatus.RUNNING,
+            uiStatus: UIStatus.RUNNING,
+            status: VintageStatus.LAUNCHED,
             steps: updatedSteps
           };
         }
@@ -186,13 +253,17 @@ export default function Vintage() {
   // Mettre en pause une cuvée
   const pauseVintage = async (vintageId) => {
     try {
+      await update("vintage", vintageId, {
+        status: VintageStatus.PAUSED
+      });
+
       const updatedVintages = vintages.map(vintage => {
         if (vintage.vintageId === vintageId) {
           const updatedSteps = vintage.steps.map(step => {
-            if (step.status === StepStatus.RUNNING) {
+            if (step.uiStatus === UIStatus.RUNNING) {
               return {
                 ...step,
-                status: StepStatus.PAUSED,
+                uiStatus: UIStatus.PAUSED,
                 pausedAt: Date.now()
               };
             }
@@ -201,6 +272,7 @@ export default function Vintage() {
 
           return {
             ...vintage,
+            uiStatus: UIStatus.PAUSED,
             status: VintageStatus.PAUSED,
             steps: updatedSteps
           };
@@ -218,14 +290,18 @@ export default function Vintage() {
   // Reprendre une cuvée
   const resumeVintage = async (vintageId) => {
     try {
+      await update("vintage", vintageId, {
+        status: VintageStatus.LAUNCHED
+      });
+
       const updatedVintages = vintages.map(vintage => {
         if (vintage.vintageId === vintageId) {
           const updatedSteps = vintage.steps.map(step => {
-            if (step.status === StepStatus.PAUSED) {
+            if (step.uiStatus === UIStatus.PAUSED) {
               const pauseDuration = Date.now() - step.pausedAt;
               return {
                 ...step,
-                status: StepStatus.RUNNING,
+                uiStatus: UIStatus.RUNNING,
                 pausedDuration: (step.pausedDuration || 0) + pauseDuration,
                 pausedAt: null
               };
@@ -235,7 +311,8 @@ export default function Vintage() {
 
           return {
             ...vintage,
-            status: VintageStatus.RUNNING,
+            uiStatus: UIStatus.RUNNING,
+            status: VintageStatus.LAUNCHED,
             steps: updatedSteps
           };
         }
@@ -252,12 +329,17 @@ export default function Vintage() {
   // Arrêter une cuvée
   const stopVintage = async (vintageId) => {
     try {
+      await update("vintage", vintageId, {
+        status: VintageStatus.CREATED,
+        globalProgress: 0
+      });
+
       const updatedVintages = vintages.map(vintage => {
         if (vintage.vintageId === vintageId) {
           const updatedSteps = vintage.steps.map(step => ({
             ...step,
-            status: step.status === StepStatus.COMPLETED ? StepStatus.COMPLETED : StepStatus.WAITING,
-            progress: step.status === StepStatus.COMPLETED ? step.progress : 0,
+            uiStatus: UIStatus.PENDING,
+            progress: 0,
             startTime: null,
             pausedDuration: 0,
             pausedAt: null
@@ -265,7 +347,9 @@ export default function Vintage() {
 
           return {
             ...vintage,
-            status: VintageStatus.PENDING,
+            uiStatus: UIStatus.PENDING,
+            status: VintageStatus.CREATED,
+            globalProgress: 0,
             steps: updatedSteps
           };
         }
@@ -279,12 +363,48 @@ export default function Vintage() {
     }
   };
 
+  // Supprimer une cuvée
+  const deleteVintage = async (vintageId) => {
+    try {
+      await remove("vintage", vintageId);
+      setVintages(vintages.filter(v => v.vintageId !== vintageId));
+      setShowDeleteConfirm(null);
+      showSucces("Cuvée supprimée avec succès !");
+    } catch (error) {
+      console.error("Erreur lors de la suppression :", error);
+      showError("Erreur lors de la suppression de la cuvée");
+    }
+  };
+
+  // Modifier une cuvée
+  const handleEditVintage = async (vintageId, updatedData) => {
+    setIsUpdating(true);
+    try {
+      const validationMessage = isValidVintageName(updatedData.label, vintageId);
+      if (validationMessage) {
+        showError(validationMessage);
+        return;
+      }
+
+      await update("vintage", vintageId, updatedData);
+      await reloadVintages();
+      
+      setEditingVintage(null);
+      showSucces("Cuvée modifiée avec succès !");
+    } catch (error) {
+      console.error("Erreur lors de la modification :", error);
+      showError("Erreur lors de la modification de la cuvée");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // Calculer le temps restant estimé
   const getEstimatedTimeRemaining = (vintage) => {
-    if (vintage.status === VintageStatus.COMPLETED) return "Terminé";
-    if (vintage.status === VintageStatus.PENDING) return "Non démarré";
+    if (vintage.uiStatus === UIStatus.COMPLETED) return "Terminé";
+    if (vintage.uiStatus === UIStatus.PENDING) return "Non démarré";
 
-    const runningStep = vintage.steps.find(step => step.status === StepStatus.RUNNING);
+    const runningStep = vintage.steps.find(step => step.uiStatus === UIStatus.RUNNING);
     if (!runningStep) return "En pause";
 
     const remaining = runningStep.estimatedEndTime - Date.now();
@@ -297,20 +417,12 @@ export default function Vintage() {
     return `${minutes}m restantes`;
   };
 
-  // Calculer la progression globale
-  const calculateOverallProgress = (vintage) => {
-    if (vintage.steps.length === 0) return 0;
-    
-    const totalProgress = vintage.steps.reduce((sum, step) => sum + step.progress, 0);
-    return Math.round(totalProgress / vintage.steps.length);
-  };
-
   // Obtenir l'icône de statut
   const getStatusIcon = (status) => {
     switch (status) {
-      case StepStatus.COMPLETED: return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case StepStatus.RUNNING: return <Clock className="w-4 h-4 text-blue-500 animate-spin" />;
-      case StepStatus.PAUSED: return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      case UIStatus.COMPLETED: return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case UIStatus.RUNNING: return <Clock className="w-4 h-4 text-blue-500 animate-spin" />;
+      case UIStatus.PAUSED: return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default: return <div className="w-4 h-4 rounded-full bg-gray-300"></div>;
     }
   };
@@ -327,19 +439,31 @@ export default function Vintage() {
   const reloadVintages = async () => {
     try {
       const vintagesData = await fetchAll("vintage");
-      setVintages(vintagesData);
+      const vintagesWithStatus = vintagesData.map(vintage => ({
+        ...vintage,
+        uiStatus: mapPrismaStatusToUI(vintage.status, vintage.isComplete),
+        globalProgress: vintage.globalProgress || 0,
+        steps: vintage.steps?.map((vintageStep) => ({
+          ...vintageStep,
+          uiStatus: calculateStepUIStatus(vintageStep.progress),
+          startTime: vintageStep.startTime || null,
+          pausedDuration: vintageStep.pausedDuration || 0,
+          estimatedEndTime: vintageStep.estimatedEndTime || null
+        })) || []
+      }));
+      setVintages(vintagesWithStatus);
     } catch (error) {
       console.error("Erreur lors du rechargement des cuvées :", error);
     }
   };
 
-  const isValidVintageName = (name) => {
+  const isValidVintageName = (name, excludeId = null) => {
     const trimmed = name.trim();
     const nameRegex = /^[a-zA-ZÀ-ÿ0-9\- ]{3,50}$/;
   
     if (!trimmed) return "Le nom ne peut pas être vide.";
     if (!nameRegex.test(trimmed)) return "Le nom doit comporter entre 3 et 50 caractères, lettres, chiffres, tirets et espaces uniquement.";
-    if (vintages.some(v => v.label.toLowerCase() === trimmed.toLowerCase())) {
+    if (vintages.some(v => v.label.toLowerCase() === trimmed.toLowerCase() && v.vintageId !== excludeId)) {
       return "Une cuvée avec ce nom existe déjà.";
     }
   
@@ -359,10 +483,8 @@ export default function Vintage() {
 
       const finalVintageData = {
         ...vintageData,
-        productorId: "234234234234"
+        productorId: user?.personnelId || "234234234234"
       };
-      
-      console.log("Données à envoyer:", finalVintageData);
       
       const createdVintage = await create("vintage", finalVintageData);
       
@@ -391,6 +513,38 @@ export default function Vintage() {
 
   const filteredVintages = vintages.filter(v =>
     v.label.toLowerCase().includes(searchVintageTerm.toLowerCase())
+  );
+
+  // Modal de confirmation de suppression
+  const DeleteConfirmModal = ({ vintage, onConfirm, onCancel }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-mx">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">Supprimer la cuvée</h3>
+        </div>
+        <p className="text-gray-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer la cuvée "<strong>{vintage.label}</strong>" ? 
+          Cette action est irréversible.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+          >
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -453,14 +607,14 @@ export default function Vintage() {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-bold text-red-800">{vintage.label}</h3>
                             <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-                              vintage.status === VintageStatus.COMPLETED ? 'bg-green-100 text-green-800' :
-                              vintage.status === VintageStatus.RUNNING ? 'bg-blue-100 text-blue-800' :
-                              vintage.status === VintageStatus.PAUSED ? 'bg-yellow-100 text-yellow-800' :
+                              vintage.uiStatus === UIStatus.COMPLETED ? 'bg-green-100 text-green-800' :
+                              vintage.uiStatus === UIStatus.RUNNING ? 'bg-blue-100 text-blue-800' :
+                              vintage.uiStatus === UIStatus.PAUSED ? 'bg-yellow-100 text-yellow-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {vintage.status === VintageStatus.COMPLETED ? 'Terminée' :
-                               vintage.status === VintageStatus.RUNNING ? 'En cours' :
-                               vintage.status === VintageStatus.PAUSED ? 'En pause' :
+                              {vintage.uiStatus === UIStatus.COMPLETED ? 'Terminée' :
+                               vintage.uiStatus === UIStatus.RUNNING ? 'En cours' :
+                               vintage.uiStatus === UIStatus.PAUSED ? 'En pause' :
                                'En attente'}
                             </span>
                           </div>
@@ -470,7 +624,8 @@ export default function Vintage() {
                         </div>
                         
                         <div className="flex gap-2">
-                          {vintage.status === VintageStatus.PENDING && (
+                          {/* Boutons de contrôle de production */}
+                          {vintage.uiStatus === UIStatus.PENDING && (
                             <button
                               onClick={() => startVintage(vintage.vintageId)}
                               className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
@@ -480,7 +635,7 @@ export default function Vintage() {
                             </button>
                           )}
                           
-                          {vintage.status === VintageStatus.RUNNING && (
+                          {vintage.uiStatus === UIStatus.RUNNING && (
                             <button
                               onClick={() => pauseVintage(vintage.vintageId)}
                               className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
@@ -490,7 +645,7 @@ export default function Vintage() {
                             </button>
                           )}
                           
-                          {vintage.status === VintageStatus.PAUSED && (
+                          {vintage.uiStatus === UIStatus.PAUSED && (
                             <button
                               onClick={() => resumeVintage(vintage.vintageId)}
                               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
@@ -500,7 +655,7 @@ export default function Vintage() {
                             </button>
                           )}
                           
-                          {(vintage.status === VintageStatus.RUNNING || vintage.status === VintageStatus.PAUSED) && (
+                          {(vintage.uiStatus === UIStatus.RUNNING || vintage.uiStatus === UIStatus.PAUSED) && (
                             <button
                               onClick={() => stopVintage(vintage.vintageId)}
                               className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
@@ -509,6 +664,23 @@ export default function Vintage() {
                               <Square className="w-4 h-4" />
                             </button>
                           )}
+
+                          {/* Boutons d'édition et suppression */}
+                          <button
+                            onClick={() => setEditingVintage(vintage)}
+                            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                            title="Modifier la cuvée"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => setShowDeleteConfirm(vintage)}
+                            className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                            title="Supprimer la cuvée"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -516,17 +688,17 @@ export default function Vintage() {
                       <div className="mb-4">
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-sm font-medium text-gray-700">Progression globale</span>
-                          <span className="text-sm text-gray-500">{calculateOverallProgress(vintage)}%</span>
+                          <span className="text-sm text-gray-500">{vintage.globalProgress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3">
                           <div
                             className={`h-3 rounded-full transition-all duration-300 ${
-                              vintage.status === VintageStatus.COMPLETED ? 'bg-green-500' :
-                              vintage.status === VintageStatus.RUNNING ? 'bg-blue-500' :
-                              vintage.status === VintageStatus.PAUSED ? 'bg-yellow-500' :
+                              vintage.uiStatus === UIStatus.COMPLETED ? 'bg-green-500' :
+                              vintage.uiStatus === UIStatus.RUNNING ? 'bg-blue-500' :
+                              vintage.uiStatus === UIStatus.PAUSED ? 'bg-yellow-500' :
                               'bg-gray-400'
                             }`}
-                            style={{ width: `${calculateOverallProgress(vintage)}%` }}
+                            style={{ width: `${vintage.globalProgress}%` }}
                           />
                         </div>
                       </div>
@@ -540,7 +712,7 @@ export default function Vintage() {
                               <div key={index} className="bg-gray-50 rounded-lg p-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
-                                    {getStatusIcon(vintageStep.status)}
+                                    {getStatusIcon(vintageStep.uiStatus)}
                                     <span className="font-medium text-gray-700">
                                       {vintageStep.step?.label}
                                     </span>
@@ -556,9 +728,9 @@ export default function Vintage() {
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                   <div
                                     className={`h-2 rounded-full transition-all duration-300 ${
-                                      vintageStep.status === StepStatus.COMPLETED ? 'bg-green-500' :
-                                      vintageStep.status === StepStatus.RUNNING ? 'bg-blue-500' :
-                                      vintageStep.status === StepStatus.PAUSED ? 'bg-yellow-500' :
+                                      vintageStep.uiStatus === UIStatus.COMPLETED ? 'bg-green-500' :
+                                      vintageStep.uiStatus === UIStatus.RUNNING ? 'bg-blue-500' :
+                                      vintageStep.uiStatus === UIStatus.PAUSED ? 'bg-yellow-500' :
                                       'bg-gray-300'
                                     }`}
                                     style={{ width: `${vintageStep.progress}%` }}
@@ -606,6 +778,42 @@ export default function Vintage() {
             />
           )}
         </div>
+
+        {/* Modal d'édition */}
+        {editingVintage && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">Modifier la cuvée</h3>
+                <button
+                  onClick={() => setEditingVintage(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <EditVintage
+                vintage={editingVintage}
+                ingredients={ingredients}
+                steps={steps}
+                qualityOptions={qualityOptions}
+                onSubmit={(updatedData) => handleEditVintage(editingVintage.vintageId, updatedData)}
+                onCancel={() => setEditingVintage(null)}
+                loading={isUpdating}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmation de suppression */}
+        {showDeleteConfirm && (
+          <DeleteConfirmModal
+            vintage={showDeleteConfirm}
+            onConfirm={() => deleteVintage(showDeleteConfirm.vintageId)}
+            onCancel={() => setShowDeleteConfirm(null)}
+          />
+        )}
       </div>
     </div>
   );

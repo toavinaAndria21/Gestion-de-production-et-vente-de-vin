@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import DataTable from "../../components/newDataTable";
 import ConfirmDeleteModal from "../../components/confirmDeleteModal";
 import GenericForm from "../../components/genericForm";
 import { fetchAll, create, update, remove } from "../../utils/api";
+import { AuthContext } from "../../context/authContext";
 
 export default function Ingredients() {
   const [ingredients, setIngredients] = useState([]);
@@ -14,6 +15,8 @@ export default function Ingredients() {
   const [showForm, setShowForm] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState(null);
+
+  const {user} = useContext(AuthContext);
 
   // Chargement initial des données
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function Ingredients() {
         // Mise à jour
         const updatedIngredient = await update("ingredient", editingItem.ingredientId, {
           ...formData,
-          productorId: "123123123123" // ID du producteur (à adapter selon votre logique)
+          productorId: user.id
         });
         
         setIngredients(prev =>
@@ -56,7 +59,7 @@ export default function Ingredients() {
         // Création
         const newIngredient = await create("ingredient", {
           ...formData,
-          productorId: "123123123123"
+          productorId: user.id 
         });
         
         setIngredients(prev => [...prev, newIngredient]);
