@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import DataTable from "../../components/newDataTable";
 import ConfirmDeleteModal from "../../components/confirmDeleteModal";
 import GenericForm from "../../components/genericForm";
+import { useToast } from "../../context/toastContext";
 import { fetchAll, create, update, remove } from "../../utils/api";
 import { AuthContext } from "../../context/authContext";
 
@@ -16,8 +17,10 @@ export default function Ingredients() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState(null);
 
-  const {user} = useContext(AuthContext);
-  console.log(JSON.stringify(user));
+  const { user } = useContext(AuthContext);
+  const { showSucces, showError, showAlert } = useToast();
+
+  // Chargement initial des données
   useEffect(() => {
     loadIngredients();
   }, []);
@@ -31,7 +34,9 @@ export default function Ingredients() {
       setIngredients(data);
     } catch (error) {
       console.error("Erreur lors du chargement des ingrédients :", error);
-      setError("Impossible de charger les ingrédients. Veuillez réessayer.");
+      const errorMessage = "Impossible de charger les ingrédients. Veuillez réessayer.";
+      setError(errorMessage);
+      showError("Erreur de chargement des ingrédients.");
     } finally {
       setIsLoadingData(false);
     }
@@ -54,22 +59,28 @@ export default function Ingredients() {
             item.ingredientId === editingItem.ingredientId ? updatedIngredient : item
           )
         );
+        
+        showSucces("Ingrédient modifié avec succès.");
       } else {
         // Création
         const newIngredient = await create("ingredient", {
           ...formData,
-          productorId: user.personnelId 
+          productorId: user.personnelId
         });
         
         setIngredients(prev => [...prev, newIngredient]);
+        showSucces("Ingrédient ajouté avec succès.");
       }
 
       // Réinitialisation du formulaire
       setEditingItem(null);
       setShowForm(false);
+      setError(null); // Nettoyer les erreurs précédentes
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
-      setError("Une erreur est survenue lors de la sauvegarde.");
+      const errorMessage = "Une erreur est survenue lors de la sauvegarde.";
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -79,18 +90,21 @@ export default function Ingredients() {
   const handleFormCancel = () => {
     setEditingItem(null);
     setShowForm(false);
+    setError(null); // Nettoyer les erreurs lors de l'annulation
   };
 
   // Ouverture du formulaire pour édition
   const handleEdit = (item) => {
     setEditingItem(item);
     setShowForm(true);
+    setError(null); // Nettoyer les erreurs lors de l'édition
   };
 
   // Ouverture du formulaire pour création
   const handleAdd = () => {
     setEditingItem(null);
     setShowForm(true);
+    setError(null); // Nettoyer les erreurs lors de l'ajout
   };
 
   // Préparation de la suppression
@@ -101,6 +115,8 @@ export default function Ingredients() {
 
   // Confirmation de la suppression
   const confirmDelete = async () => {
+    if (!ingredientToDelete) return;
+    
     try {
       await remove("ingredient", ingredientToDelete.ingredientId);
 
@@ -108,18 +124,30 @@ export default function Ingredients() {
         prev.filter(i => i.ingredientId !== ingredientToDelete.ingredientId)
       );
 
+      showSucces(`Ingrédient "${ingredientToDelete.label}" supprimé avec succès.`);
+
       // Si on était en train d'éditer cet élément, on ferme le formulaire
       if (editingItem && editingItem.ingredientId === ingredientToDelete.ingredientId) {
         setEditingItem(null);
         setShowForm(false);
       }
+      
+      setError(null); // Nettoyer les erreurs après succès
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
-      setError("Une erreur est survenue lors de la suppression.");
+      const errorMessage = "Une erreur est survenue lors de la suppression.";
+      setError(errorMessage);
+      showError("Échec de la suppression.");
     } finally {
       setIsModalOpen(false);
       setIngredientToDelete(null);
     }
+  };
+
+  // Fermeture du modal de suppression
+  const handleCloseDeleteModal = () => {
+    setIsModalOpen(false);
+    setIngredientToDelete(null);
   };
 
   // Configuration des colonnes du tableau avec styles améliorés
@@ -179,9 +207,10 @@ export default function Ingredients() {
       render: (item) => (
         <div className="flex justify-center gap-2">
           <button
-            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200"
+            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleEdit(item)}
             title="Modifier cet ingrédient"
+            disabled={isLoading}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -189,9 +218,10 @@ export default function Ingredients() {
             Modifier
           </button>
           <button
-            className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200"
+            className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleDelete(item)}
             title="Supprimer cet ingrédient"
+            disabled={isLoading}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -242,7 +272,8 @@ export default function Ingredients() {
             {!showForm && (
               <button
                 onClick={handleAdd}
-                className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -298,7 +329,7 @@ export default function Ingredients() {
           </div>
         </div>
 
-        {/* Message d'erreur global */}
+        {/* Message d'erreur global - Simplifié car on utilise maintenant les toasts */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center">
@@ -371,9 +402,13 @@ export default function Ingredients() {
         {/* Modal de confirmation de suppression */}
         <ConfirmDeleteModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleCloseDeleteModal}
           onConfirm={confirmDelete}
-          message={`Voulez-vous vraiment supprimer l'ingrédient "${ingredientToDelete?.label}" ?`}
+          message={
+            ingredientToDelete 
+              ? `Voulez-vous vraiment supprimer l'ingrédient "${ingredientToDelete.label}" ?`
+              : "Voulez-vous supprimer cet ingrédient ?"
+          }
         />
       </div>
     </div>

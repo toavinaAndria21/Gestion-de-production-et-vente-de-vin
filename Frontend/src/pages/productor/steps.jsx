@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Plus } from "lucide-react";
 import { useToast } from "../../context/toastContext";
 import DataTable from "../../components/newDataTable";
 import GenericForm from "../../components/genericForm";
+import ConfirmDeleteModal from "../../components/confirmDeleteModal";
 import { fetchAll, create, update, remove } from "../../utils/api";
+import { AuthContext } from "../../context/authContext";
+
 
 export default function Steps() {
   const [steps, setSteps] = useState([]);
@@ -12,7 +15,13 @@ export default function Steps() {
   const [isLoading, setIsLoading] = useState(false);
   const [dataTableLoading, setDataTableLoading] = useState(true);
   const [dataTableError, setDataTableError] = useState(null);
+  
+  // États pour le modal de suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [stepToDelete, setStepToDelete] = useState(null);
+  
   const { showSucces, showError, showAlert } = useToast();
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     async function loadSteps() {
@@ -53,7 +62,7 @@ export default function Steps() {
       const stepData = {
         ...formData,
         duration: parseInt(formData.duration, 10),
-        productorId: "123123123123",
+        productorId: user.personnelId,
       };
 
       if (editingStep) {
@@ -78,30 +87,30 @@ export default function Steps() {
     }
   };
 
-  // const handleDelete = (item) => {
-  //   toast(
-  //     `Voulez-vous supprimer "${item.label}" ?`,
-  //     {
-  //       action: {
-  //         label: "Supprimer",
-  //         onClick: () => confirmDelete(item),
-  //       },
-  //       cancel: {
-  //         label: "Annuler",
-  //       },
-  //     }
-  //   );
-  // };
+  // Nouvelle fonction pour ouvrir le modal de suppression
+  const handleDelete = (item) => {
+    setStepToDelete(item);
+    setShowDeleteModal(true);
+  };
 
-  const confirmDelete = async (item) => {
+  // Fonction pour fermer le modal de suppression
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setStepToDelete(null);
+  };
+
+  // Fonction de confirmation de suppression
+  const confirmDelete = async () => {
+    if (!stepToDelete) return;
+    
     setIsLoading(true);
     try {
-      await remove("step", item.stepId);
+      await remove("step", stepToDelete.stepId);
     
-      setSteps((prev) => prev.filter((i) => i.stepId !== item.stepId));
-      showSucces(`Étape "${item.label}" supprimée.`);
+      setSteps((prev) => prev.filter((i) => i.stepId !== stepToDelete.stepId));
+      showSucces(`Étape "${stepToDelete.label}" supprimée.`);
       
-      if (editingStep && editingStep.stepId === item.stepId) {
+      if (editingStep && editingStep.stepId === stepToDelete.stepId) {
         setEditingStep(null);
         setShowForm(false);
       }
@@ -110,6 +119,7 @@ export default function Steps() {
       showError("Échec de la suppression.");
     } finally {
       setIsLoading(false);
+      handleCloseDeleteModal(); // Fermer le modal après suppression
     }
   };
 
@@ -154,7 +164,8 @@ export default function Steps() {
           <button
             className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200"
             onClick={() => openEditModal(item)}
-            title="Modifier cet ingrédient"
+            title="Modifier cette étape"
+            disabled={isLoading}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -162,9 +173,10 @@ export default function Steps() {
             Modifier
           </button>
           <button
-            className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200"
+            className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleDelete(item)}
-            title="Supprimer cet ingrédient"
+            title="Supprimer cette étape"
+            disabled={isLoading}
           >
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -188,6 +200,7 @@ export default function Steps() {
           <button
             onClick={handleAdd}
             className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            disabled={isLoading}
           >
             <Plus className="w-5 h-5 mr-2" />
             Ajouter une étape
@@ -225,6 +238,18 @@ export default function Steps() {
           error={dataTableError}
         />
       </div>
+
+      {/* Modal de confirmation de suppression */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        onConfirm={confirmDelete}
+        message={
+          stepToDelete 
+            ? `Voulez-vous supprimer l'étape "${stepToDelete.label}" ?` 
+            : "Voulez-vous supprimer cette étape ?"
+        }
+      />
     </div>
   );
 }
