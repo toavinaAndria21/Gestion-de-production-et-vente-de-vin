@@ -18,7 +18,17 @@ export class ProductController {
     static async updateProduct(req:Request, res:Response) {
         try {
             const id:number = parseInt(req.params.id);
-            const updatedProduct = await ProductService.update(id, req.body);
+            
+            const productData = {
+                ...req.body,
+            }
+            
+            if( req.file ) {
+                productData.image = req.file.path;
+            }
+
+
+            const updatedProduct = await ProductService.update(id, productData);
             res.status(200).json({message:"Produit modifié avec succes", data:updatedProduct})
         } catch (error) {  
             res.status(500).json({message:"Erreur lors de la modification"});
@@ -35,7 +45,7 @@ export class ProductController {
             if( req.file ) {
                 image = req.file.path; //stocker le chemin locale du fichier
             }
-            console.log('path', image)
+           
             const newProduct = await ProductService.create({vintageId, formatId, label, price, stock, type, image, category});
             res.status(201).json({message:"Produit crée avec succes", data:newProduct})
         } catch (error) {
