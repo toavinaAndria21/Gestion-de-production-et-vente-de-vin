@@ -97,22 +97,35 @@ export class VintageService {
           throw new Error(`Erreur de création de la cuvée: ${error}`);
         }
       }
-  static async update(id:number, data:Vintage) {
+    static async update(id:number, data:Partial<VintageToCreate>) {
         try {
+
             const existingVintage = await prisma.vintage.findUnique({
                 where:{ 
                     vintageId: id
                  }
             })
+
+          console.log(JSON.stringify(data))
+
             if(existingVintage){
+
+              const dataToChange = {
+                productorId: data.productorId !== undefined ? data.productorId : existingVintage.productorId,
+                label: data.label !== undefined ? data.label : existingVintage.label,
+                quality: data.quality !== undefined ? data.quality : existingVintage.quality,
+                status: data.status !== undefined ? data.status : existingVintage.status,
+                globalProgress: data.globalProgress !== undefined ? data.globalProgress : existingVintage.globalProgress,
+              }
+              
                 const vintage = await prisma.vintage.update({
                     where:{ vintageId: id },
                     data: { 
-                      productorId: data.productorId,
-                      label: data.label,
-                      quality: data.quality,
-                      status: data.status,
-                      globalProgress: data.globalProgress
+                      productorId: dataToChange.productorId,
+                      label: dataToChange.label,
+                      quality: dataToChange.quality,
+                      status: dataToChange.status,
+                      globalProgress: dataToChange.globalProgress
                     }
                 })
                 return vintage;
@@ -126,7 +139,7 @@ export class VintageService {
 
     static async delete(id:number) {
         try {
-          
+
            await prisma.vintageStep.deleteMany({
              where:{
                 vintageId: id

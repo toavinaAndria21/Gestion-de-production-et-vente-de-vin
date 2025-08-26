@@ -58,7 +58,8 @@ export class ProductService {
                 data: {
                      formatId: product.formatId,
                      label: product.label,
-                     price: product.price
+                     price: product.price,
+                     ...(product.image && { image: product.image })
                 },
             });
             return updatedProduct;
