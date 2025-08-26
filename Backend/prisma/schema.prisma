@@ -181,29 +181,16 @@ model TicketLine {
 model Ticket {
   ticketId Int @id @default(autoincrement())
   sellerId String
-  clientId Int 
   state TicketState
   createdAt DateTime @default(now())
   ticketLines TicketLine[]
   
   seller Personnel @relation(fields: [sellerId], references: [personnelId])
-  client Client @relation(fields: [clientId], references: [clientId])
 
   delivery Delivery?
   payment Payment?
 }
 
-model Client {
-  clientId Int @id @default(autoincrement())
-  name String
-  lastName String
-  adress String
-  email String @unique
-  password String
-  createdAt DateTime @default(now())
-
-  tickets Ticket[]
-}
 
 model Delivery {
   deliveryId Int @id @default(autoincrement())

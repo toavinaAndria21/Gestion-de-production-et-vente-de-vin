@@ -127,7 +127,6 @@ export class ProductService {
             const ticket = await tx.ticket.create({
                 data:{
                     sellerId,
-                    clientId:1,
                     state:'Payé'
                 }
             });

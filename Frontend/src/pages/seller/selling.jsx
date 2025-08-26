@@ -18,7 +18,7 @@ export default function Selling() {
     const [searchTerm, setSearchTerm] = useState('');
     const { showSucces, showError, showAlert } = useToast();
     const { user } = useContext(AuthContext);
-    console.log(user.personnelId)
+
     const getAllWines = async () => {
       try {
         const response = await fetch(`${API_URL}/product`);
@@ -184,8 +184,7 @@ export default function Selling() {
                 <p>Heure: {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">N° Commande: CMD-{Math.floor(Math.random() * 1000000)}</p>
-                <p>Vendeur: Thomas Dubois</p>
+                <p className="font-medium">Vendeur: { user?.name + ' ' + user?.lastName }</p>
               </div>
             </div>
 

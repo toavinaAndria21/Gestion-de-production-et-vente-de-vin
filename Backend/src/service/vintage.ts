@@ -20,9 +20,7 @@ export class VintageService {
   }
     static async create(vintage: VintageToCreate) {
         try {
-      // console.log(JSON.stringify(vintage))
-
-          // Utilisation d'une transaction pour garantir la cohérence des données
+          //Transaction pour garantir la cohérence des données
           const result = await prisma.$transaction(async (tx) => {
             // 1. Créer la cuvée
             const newVintage = await tx.vintage.create({
@@ -99,7 +97,7 @@ export class VintageService {
           throw new Error(`Erreur de création de la cuvée: ${error}`);
         }
       }
-    static async update(id:number, data:Vintage) {
+  static async update(id:number, data:Vintage) {
         try {
             const existingVintage = await prisma.vintage.findUnique({
                 where:{ 
@@ -170,4 +168,31 @@ export class VintageService {
             throw new Error('Erreur lors de la recherche');
         }
     }
+
+   static async getVintagesWithProducts(){
+      const vintages = await prisma.vintage.findMany({
+        include: {
+          products: {
+            include: {
+              format: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return vintages.map(v => ({
+        label: v.label,
+        quality: v.quality,
+        createdAt: new Date(v.createdAt).toLocaleDateString(),
+        productor: v.productorId,
+        products: v.products.map(p => ({
+          label: p.label,
+          format: `${p.format.label} ${p.format.quantity} ${p.format.unit}`,
+          price: p.price,
+        })),
+      }));
+    }; 
 }
