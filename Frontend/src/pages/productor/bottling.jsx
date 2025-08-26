@@ -13,10 +13,175 @@ export default function Bottling() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // États pour les données API - initialisation avec des tableaux vides
-  const [vintages, setVintages] = useState([]);
-  const [products, setProducts] = useState([]); // Produits créés (mises en bouteille)
-  const [formats, setFormats] = useState([]); // Formats de bouteilles disponibles
+  // Données statiques pour les formats
+  const staticFormats = [
+    { formatId: 1, label: "Bouteille 75cL", quantity: 75, unit: "cL" },
+    { formatId: 2, label: "Magnum 1.5L", quantity: 150, unit: "cL" },
+    { formatId: 3, label: "Jéroboam 3L", quantity: 300, unit: "cL" },
+    { formatId: 4, label: "Bouteille Premium 75cL", quantity: 75, unit: "cL" }
+  ];
+
+  // Données statiques pour les vintages (cuvées)
+  const staticVintages = [
+    {
+      vintageId: 1,
+      label: "Cuvée Prestige 2023",
+      quality: "Excellent",
+      isComplete: true,
+      globalProgress: 100,
+      createdAt: "2023-03-15T10:00:00Z",
+      displayName: "Cuvée Prestige 2023 - Excellent",
+      dateCreation: "15/03/2023"
+    },
+    {
+      vintageId: 2,
+      label: "Château Rouge 2023",
+      quality: "Premium",
+      isComplete: true,
+      globalProgress: 100,
+      createdAt: "2023-04-20T14:30:00Z",
+      displayName: "Château Rouge 2023 - Premium",
+      dateCreation: "20/04/2023"
+    },
+    {
+      vintageId: 3,
+      label: "Blanc de Blancs 2023",
+      quality: "Standard",
+      isComplete: true,
+      globalProgress: 100,
+      createdAt: "2023-05-10T09:15:00Z",
+      displayName: "Blanc de Blancs 2023 - Standard",
+      dateCreation: "10/05/2023"
+    }
+  ];
+
+  // Données statiques pour les produits
+  const [products, setProducts] = useState([
+    {
+      id: 1,
+      productId: 1,
+      vintageId: 1,
+      formatId: 1,
+      cuveeName: "Cuvée Prestige 2023",
+      label: "Cuvée Prestige Rouge 2023",
+      price: 45.00,
+      type: "Rouge",
+      stock: 500,
+      category: "Prestige",
+      formatLabel: "Bouteille 75cL",
+      formatQuantity: 75,
+      formatUnit: "cL",
+      image: "prestige-rouge.jpg",
+      createdAt: "15/08/2025",
+      nombreBouteilles: 500,
+      typeBouteille: "Bouteille 75cL",
+      date: "15/08/2025"
+    },
+    {
+      id: 2,
+      productId: 2,
+      vintageId: 1,
+      formatId: 2,
+      cuveeName: "Cuvée Prestige 2023",
+      label: "Cuvée Prestige Rouge Magnum 2023",
+      price: 95.00,
+      type: "Rouge",
+      stock: 150,
+      category: "Prestige",
+      formatLabel: "Magnum 1.5L",
+      formatQuantity: 150,
+      formatUnit: "cL",
+      image: "prestige-magnum.jpg",
+      createdAt: "16/08/2025",
+      nombreBouteilles: 150,
+      typeBouteille: "Magnum 1.5L",
+      date: "16/08/2025"
+    },
+    {
+      id: 3,
+      productId: 3,
+      vintageId: 2,
+      formatId: 1,
+      cuveeName: "Château Rouge 2023",
+      label: "Château Rouge Premium 2023",
+      price: 32.50,
+      type: "Rouge",
+      stock: 800,
+      category: "Standard",
+      formatLabel: "Bouteille 75cL",
+      formatQuantity: 75,
+      formatUnit: "cL",
+      image: "chateau-rouge.jpg",
+      createdAt: "18/08/2025",
+      nombreBouteilles: 800,
+      typeBouteille: "Bouteille 75cL",
+      date: "18/08/2025"
+    },
+    {
+      id: 4,
+      productId: 4,
+      vintageId: 3,
+      formatId: 1,
+      cuveeName: "Blanc de Blancs 2023",
+      label: "Blanc de Blancs Découverte 2023",
+      price: 28.00,
+      type: "Blanc",
+      stock: 600,
+      category: "Découverte",
+      formatLabel: "Bouteille 75cL",
+      formatQuantity: 75,
+      formatUnit: "cL",
+      image: "blanc-decouverte.jpg",
+      createdAt: "20/08/2025",
+      nombreBouteilles: 600,
+      typeBouteille: "Bouteille 75cL",
+      date: "20/08/2025"
+    },
+    {
+      id: 5,
+      productId: 5,
+      vintageId: 2,
+      formatId: 3,
+      cuveeName: "Château Rouge 2023",
+      label: "Château Rouge Jéroboam Prestige",
+      price: 180.00,
+      type: "Rouge",
+      stock: 50,
+      category: "Prestige",
+      formatLabel: "Jéroboam 3L",
+      formatQuantity: 300,
+      formatUnit: "cL",
+      image: "jeroboam-prestige.jpg",
+      createdAt: "22/08/2025",
+      nombreBouteilles: 50,
+      typeBouteille: "Jéroboam 3L",
+      date: "22/08/2025"
+    },
+    {
+      id: 6,
+      productId: 6,
+      vintageId: 3,
+      formatId: 4,
+      cuveeName: "Blanc de Blancs 2023",
+      label: "Blanc Premium Édition Limitée",
+      price: 55.00,
+      type: "Blanc",
+      stock: 200,
+      category: "Prestige",
+      formatLabel: "Bouteille Premium 75cL",
+      formatQuantity: 75,
+      formatUnit: "cL",
+      image: "blanc-premium.jpg",
+      createdAt: "25/08/2025",
+      nombreBouteilles: 200,
+      typeBouteille: "Bouteille Premium 75cL",
+      date: "25/08/2025"
+    }
+  ]);
+
+  // États pour les données API - utilisation des données statiques
+  const [vintages, setVintages] = useState(staticVintages);
+  const [formats, setFormats] = useState(staticFormats);
 
   // Cuvée sélectionnée pour la mise en bouteille
   const [selectedVintage, setSelectedVintage] = useState(null);
@@ -32,121 +197,17 @@ export default function Bottling() {
     image: "default.jpg" // Image par défaut
   });
 
-  // Chargement des données au montage
+  // Chargement initial simulé
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Charger toutes les données nécessaires
-        const vintagesData = await fetchAll("vintage");
-        const productsData = await fetchAll("vintage");
-        const formatsData = await fetchAll("vintage");
-        
-        // Mapper les vintages - seules les cuvées terminées peuvent être mises en bouteille
-        const availableVintages = (vintagesData || [])
-          .filter(vintage => (vintage && vintage.isComplete && vintage.globalProgress === 100) || true)
-          .map(vintage => ({
-            ...vintage,
-            displayName: `${vintage.label} - ${vintage.quality}`,
-            dateCreation: new Date(vintage.createdAt).toLocaleDateString("fr-FR")
-          }));
-        
-        setVintages(availableVintages);
-        
-        // Mapper les produits (mises en bouteille existantes)
-        const mappedProducts = (productsData || []).map(product => ({
-          id: product.productId,
-          productId: product.productId,
-          vintageId: product.vintageId,
-          cuveeName: product.vintage?.label || "Cuvée inconnue",
-          label: product.label,
-          price: parseFloat(product.price || 0),
-          type: product.type,
-          stock: product.stock || 0,
-          category: product.category,
-          formatLabel: product.format?.label || "Format inconnu",
-          formatQuantity: product.format?.quantity || 0,
-          formatUnit: product.format?.unit || "cL",
-          image: product.image,
-          createdAt: new Date(product.createdAt).toLocaleDateString("fr-FR"),
-          // Données calculées pour l'affichage
-          nombreBouteilles: product.stock || 0,
-          typeBouteille: product.format?.label || "standard",
-          date: new Date(product.createdAt).toLocaleDateString("fr-FR")
-        }));
-        
-        setProducts(mappedProducts);
-        setFormats(formatsData || []);
-        
-      } catch (error) {
-        console.error("Erreur lors du chargement des données :", error);
-        showError("Erreur lors du chargement des données");
-        
-        // Fallback - charger au moins les formats par défaut si possible
-        try {
-          const formatsData = await fetchAll("format");
-          setFormats(formatsData);
-        } catch (formatError) {
-          console.error("Impossible de charger les formats :", formatError);
-          // Formats par défaut si l'API échoue complètement
-          setFormats([
-            { formatId: 1, label: "Bouteille 75cL", quantity: 75, unit: "cL" },
-            { formatId: 2, label: "Magnum 1.5L", quantity: 150, unit: "cL" },
-            { formatId: 3, label: "Jéroboam 3L", quantity: 300, unit: "cL" }
-          ]);
-        }
-      } finally {
-        setLoading(false);
-      }
+    const simulateLoading = async () => {
+      setLoading(true);
+      // Simulation d'un délai de chargement
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setLoading(false);
     };
 
-    fetchData();
+    simulateLoading();
   }, []);
-
-  // Recharger les données après une modification
-  const reloadData = async () => {
-    try {
-      const [vintagesData, productsData] = await Promise.all([
-        fetchAll("vintage"),
-        fetchAll("product")
-      ]);
-      
-      const availableVintages = vintagesData
-        .filter(vintage => vintage.isComplete && vintage.globalProgress === 100)
-        .map(vintage => ({
-          ...vintage,
-          displayName: `${vintage.label} - ${vintage.quality}`,
-          dateCreation: new Date(vintage.createdAt).toLocaleDateString("fr-FR")
-        }));
-      
-      setVintages(availableVintages);
-      
-      const mappedProducts = productsData.map(product => ({
-        id: product.productId,
-        productId: product.productId,
-        vintageId: product.vintageId,
-        cuveeName: product.vintage?.label || "Cuvée inconnue",
-        label: product.label,
-        price: parseFloat(product.price),
-        type: product.type,
-        stock: product.stock,
-        category: product.category,
-        formatLabel: product.format?.label || "Format inconnu",
-        formatQuantity: product.format?.quantity || 0,
-        formatUnit: product.format?.unit || "cL",
-        image: product.image,
-        createdAt: new Date(product.createdAt).toLocaleDateString("fr-FR"),
-        nombreBouteilles: product.stock,
-        typeBouteille: product.format?.label || "standard",
-        date: new Date(product.createdAt).toLocaleDateString("fr-FR")
-      }));
-      
-      setProducts(mappedProducts);
-    } catch (error) {
-      console.error("Erreur lors du rechargement :", error);
-    }
-  };
 
   // Configuration des colonnes du tableau
   const columns = [
@@ -219,7 +280,7 @@ export default function Bottling() {
       label: "Prix", 
       render: (item) => (
         <div className="text-right">
-          <div className="font-semibold text-green-600">{item.price.toFixed(2)} €</div>
+          <div className="font-semibold text-green-600">{item.price.toFixed(2)} Ar</div>
           <div className="text-xs text-gray-500">{item.type}</div>
         </div>
       )
@@ -258,7 +319,7 @@ export default function Bottling() {
       setBottlingData({
         ...bottlingData,
         label: `${vintage.label} - ${vintage.quality}`,
-        type: vintage.quality?.toLowerCase().includes('blanc') ? 'Blanc' : 'Rouge'
+        type: vintage.quality?.toLowerCase().includes('blanc') || vintage.label.toLowerCase().includes('blanc') ? 'Blanc' : 'Rouge'
       });
     }
   };
@@ -283,7 +344,7 @@ export default function Bottling() {
       type: item.type,
       stock: item.stock.toString(),
       category: item.category,
-      formatId: item.formatId || "",
+      formatId: item.formatId.toString(),
       image: item.image
     });
     
@@ -297,10 +358,12 @@ export default function Bottling() {
       try {
         setLoading(true);
         
-        await remove("product", item.productId);
-        showSucces("Produit supprimé avec succès !");
+        // Simulation de suppression
+        setProducts(prevProducts => 
+          prevProducts.filter(product => product.productId !== item.productId)
+        );
         
-        await reloadData();
+        showSucces("Produit supprimé avec succès !");
         
       } catch (error) {
         console.error("Erreur lors de la suppression :", error);
@@ -348,47 +411,51 @@ export default function Bottling() {
     try {
       setLoading(true);
       
-      const productPayload = {
+      const selectedFormat = formats.find(f => f.formatId === parseInt(bottlingData.formatId));
+      const currentDate = new Date().toLocaleDateString("fr-FR");
+      
+      const newProduct = {
+        id: editData ? editData.id : Date.now(),
+        productId: editData ? editData.productId : Date.now(),
         vintageId: selectedVintage.vintageId,
         formatId: parseInt(bottlingData.formatId),
+        cuveeName: selectedVintage.label,
         label: bottlingData.label.trim(),
         price: parseFloat(bottlingData.price),
         type: bottlingData.type,
         stock: parseInt(bottlingData.stock),
         category: bottlingData.category,
-        image: bottlingData.image || "default.jpg"
+        formatLabel: selectedFormat?.label || "Format inconnu",
+        formatQuantity: selectedFormat?.quantity || 0,
+        formatUnit: selectedFormat?.unit || "cL",
+        image: bottlingData.image || "default.jpg",
+        createdAt: editData ? editData.createdAt : currentDate,
+        nombreBouteilles: parseInt(bottlingData.stock),
+        typeBouteille: selectedFormat?.label || "standard",
+        date: editData ? editData.date : currentDate
       };
       
       if (editData) {
         // Mode modification
-        await update("product", editData.productId, productPayload);
+        setProducts(prevProducts => 
+          prevProducts.map(product => 
+            product.productId === editData.productId ? newProduct : product
+          )
+        );
         showSucces("Produit modifié avec succès !");
         setEditData(null);
       } else {
         // Mode création
-        await create("product", productPayload);
+        setProducts(prevProducts => [...prevProducts, newProduct]);
         showSucces("Produit créé avec succès !");
       }
       
-      await reloadData();
       resetForm();
       setShowForm(false);
       
     } catch (error) {
       console.error("Erreur lors de l'enregistrement :", error);
-      
-      let errorMessage = "Erreur lors de l'enregistrement du produit";
-      if (error.message) {
-        if (error.message.includes("formatId")) {
-          errorMessage = "Format de bouteille invalide";
-        } else if (error.message.includes("vintageId")) {
-          errorMessage = "Cuvée invalide ou introuvable";
-        } else {
-          errorMessage = `Erreur: ${error.message}`;
-        }
-      }
-      
-      showError(errorMessage);
+      showError("Erreur lors de l'enregistrement du produit");
     } finally {
       setLoading(false);
     }
@@ -410,19 +477,18 @@ export default function Bottling() {
     setEditData(null);
   };
 
-  // Calcul des statistiques avec vérifications de sécurité
-  const totalBottles = (products || []).reduce((sum, item) => sum + (item.stock || 0), 0);
-  const totalValue = (products || []).reduce((sum, item) => sum + ((item.stock || 0) * (item.price || 0)), 0);
-  const uniqueVintages = [...new Set((products || []).map(item => item.vintageId))].length;
-  const recentProducts = (products || []).filter(item => {
-    if (!item.date) return false;
+  // Calcul des statistiques
+  const totalBottles = products.reduce((sum, item) => sum + item.stock, 0);
+  const totalValue = products.reduce((sum, item) => sum + (item.stock * item.price), 0);
+  const uniqueVintages = [...new Set(products.map(item => item.vintageId))].length;
+  const recentProducts = products.filter(item => {
     const itemDate = new Date(item.date.split('/').reverse().join('-'));
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     return itemDate >= thirtyDaysAgo;
   }).length;
 
-  if (loading && vintages.length === 0 && products.length === 0) {
+  if (loading && products.length === 0) {
     return (
       <div className="w-full min-h-screen p-6 bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -468,42 +534,31 @@ export default function Bottling() {
               {/* Sélection de cuvée */}
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
-                  Cuvée terminée * {vintages.length === 0 && "(Aucune cuvée terminée disponible)"}
+                  Cuvée terminée *
                 </label>
-                {vintages.length > 0 ? (
-                  <>
-                    <select
-                      value={selectedVintage?.vintageId || ''}
-                      onChange={(e) => {
-                        const vintage = vintages.find(v => v.vintageId === parseInt(e.target.value));
-                        if (vintage) selectVintage(vintage);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Choisir une cuvée...</option>
-                      {(vintages || []).map(vintage => (
-                        <option key={vintage.vintageId} value={vintage.vintageId}>
-                          {vintage.displayName}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {selectedVintage && (
-                      <div className="p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-600">
-                          <strong>Qualité:</strong> {selectedVintage.quality}<br/>
-                          <strong>Créée le:</strong> {selectedVintage.dateCreation}<br/>
-                          <strong>Progression:</strong> {selectedVintage.globalProgress}% (Terminée)
-                        </p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      Aucune cuvée terminée n'est disponible pour la mise en bouteille. 
-                      Veuillez d'abord terminer une cuvée dans le module de production.
+                <select
+                  value={selectedVintage?.vintageId || ''}
+                  onChange={(e) => {
+                    const vintage = vintages.find(v => v.vintageId === parseInt(e.target.value));
+                    if (vintage) selectVintage(vintage);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Choisir une cuvée...</option>
+                  {vintages.map(vintage => (
+                    <option key={vintage.vintageId} value={vintage.vintageId}>
+                      {vintage.displayName}
+                    </option>
+                  ))}
+                </select>
+                
+                {selectedVintage && (
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-600">
+                      <strong>Qualité:</strong> {selectedVintage.quality}<br/>
+                      <strong>Créée le:</strong> {selectedVintage.dateCreation}<br/>
+                      <strong>Progression:</strong> {selectedVintage.globalProgress}% (Terminée)
                     </p>
                   </div>
                 )}
@@ -591,7 +646,7 @@ export default function Bottling() {
                       required
                     >
                       <option value="">Choisir un format...</option>
-                      {(formats || []).map(format => (
+                      {formats.map(format => (
                         <option key={format.formatId} value={format.formatId}>
                           {format.label} ({format.quantity}{format.unit})
                         </option>
@@ -656,7 +711,7 @@ export default function Bottling() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Valeur stock</p>
-                <p className="text-2xl font-bold text-green-600">{totalValue.toFixed(0)}€</p>
+                <p className="text-2xl font-bold text-green-600">{totalValue.toFixed(0)} Ar</p>
               </div>
               <Package className="h-8 w-8 text-green-600" />
             </div>
@@ -689,7 +744,7 @@ export default function Bottling() {
             data={products} 
             columns={columns}
             title="Produits en stock"
-            subtitle={`${products.length} produits | ${totalBottles.toLocaleString()} bouteilles | ${totalValue.toFixed(2)}Ar de valeur`}
+            subtitle={`${products.length} produits | ${totalBottles.toLocaleString()} bouteilles | ${totalValue.toFixed(0)} Ar de valeur`}
           />
         </div>
       </div>
