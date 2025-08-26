@@ -193,12 +193,22 @@ export default function Vintage() {
   // Fonction pour sauvegarder la progression en base
   const updateVintageProgress = async (vintageId, globalProgress, isComplete, steps) => {
     try {
+
+      // Trouver la cuvée dans l'état local pour avoir tous les champs
+      const currentVintage = vintages.find(v => v.vintageId === vintageId);
+      if (!currentVintage) return;
+
+      // Mise à jour de la cuvée avec tous les champs requis
       await update("vintage", vintageId, {
+        productorId: currentVintage.productorId,
+        label: currentVintage.label,
+        quality: currentVintage.quality,
         globalProgress,
         isComplete,
         status: isComplete ? VintageStatus.CREATED : VintageStatus.LAUNCHED
       });
 
+      // Mise à jour des étapes individuelles
       for (const step of steps) {
         if (step.vintageStepId) {
           await update("vintageStep", step.vintageStepId, {
@@ -206,6 +216,9 @@ export default function Vintage() {
           });
         }
       }
+
+      console.log("PROGRESS///////////////////////////////////")
+
     } catch (error) {
       console.error("Erreur lors de la sauvegarde de la progression :", error);
     }
@@ -221,16 +234,23 @@ export default function Vintage() {
     return duration * (multipliers[unit] || multipliers['heures']) / simulationSpeed;
   };
 
+  // ========== FONCTIONS DE MODIFICATION UNIFIÉES ==========
+
   // Démarrer une cuvée
-  const startVintage = async (vintageId) => {
+  const startVintage = async (vintage) => {
     try {
-      await update("vintage", vintageId, {
+      await update("vintage", vintage.vintageId, {
+        productorId: vintage.productorId,
+        label: vintage.label,
+        quality: vintage.quality,
+        globalProgress: vintage.globalProgress,
+        isComplete: vintage.isComplete,
         status: VintageStatus.LAUNCHED
       });
 
-      const updatedVintages = vintages.map(vintage => {
-        if (vintage.vintageId === vintageId) {
-          const updatedSteps = vintage.steps.map((step, index) => {
+      const updatedVintages = vintages.map(elementVintage => {
+        if (elementVintage.vintageId === vintage.vintageId) {
+          const updatedSteps = elementVintage.steps.map((step, index) => {
             if (index === 0) {
               return {
                 ...step,
@@ -242,13 +262,13 @@ export default function Vintage() {
           });
 
           return {
-            ...vintage,
+            ...elementVintage,
             uiStatus: UIStatus.RUNNING,
             status: VintageStatus.LAUNCHED,
             steps: updatedSteps
           };
         }
-        return vintage;
+        return elementVintage;
       });
       
       setVintages(updatedVintages);
@@ -260,15 +280,20 @@ export default function Vintage() {
   };
 
   // Mettre en pause une cuvée
-  const pauseVintage = async (vintageId) => {
+  const pauseVintage = async (vintage) => {
     try {
-      await update("vintage", vintageId, {
+      await update("vintage", vintage.vintageId, {
+        productorId: vintage.productorId,
+        label: vintage.label,
+        quality: vintage.quality,
+        globalProgress: vintage.globalProgress,
+        isComplete: vintage.isComplete,
         status: VintageStatus.PAUSED
       });
 
-      const updatedVintages = vintages.map(vintage => {
-        if (vintage.vintageId === vintageId) {
-          const updatedSteps = vintage.steps.map(step => {
+      const updatedVintages = vintages.map(elementVintage => {
+        if (elementVintage.vintageId === vintage.vintageId) {
+          const updatedSteps = elementVintage.steps.map(step => {
             if (step.uiStatus === UIStatus.RUNNING) {
               return {
                 ...step,
@@ -280,13 +305,13 @@ export default function Vintage() {
           });
 
           return {
-            ...vintage,
+            ...elementVintage,
             uiStatus: UIStatus.PAUSED,
             status: VintageStatus.PAUSED,
             steps: updatedSteps
           };
         }
-        return vintage;
+        return elementVintage;
       });
       
       setVintages(updatedVintages);
@@ -298,15 +323,20 @@ export default function Vintage() {
   };
 
   // Reprendre une cuvée
-  const resumeVintage = async (vintageId) => {
+  const resumeVintage = async (vintage) => {
     try {
-      await update("vintage", vintageId, {
+      await update("vintage", vintage.vintageId, {
+        productorId: vintage.productorId,
+        label: vintage.label,
+        quality: vintage.quality,
+        globalProgress: vintage.globalProgress,
+        isComplete: vintage.isComplete,
         status: VintageStatus.LAUNCHED
       });
 
-      const updatedVintages = vintages.map(vintage => {
-        if (vintage.vintageId === vintageId) {
-          const updatedSteps = vintage.steps.map(step => {
+      const updatedVintages = vintages.map(elementVintage => {
+        if (elementVintage.vintageId === vintage.vintageId) {
+          const updatedSteps = elementVintage.steps.map(step => {
             if (step.uiStatus === UIStatus.PAUSED) {
               const pauseDuration = Date.now() - step.pausedAt;
               return {
@@ -320,13 +350,13 @@ export default function Vintage() {
           });
 
           return {
-            ...vintage,
+            ...elementVintage,
             uiStatus: UIStatus.RUNNING,
             status: VintageStatus.LAUNCHED,
             steps: updatedSteps
           };
         }
-        return vintage;
+        return elementVintage;
       });
       
       setVintages(updatedVintages);
@@ -338,16 +368,20 @@ export default function Vintage() {
   };
 
   // Arrêter une cuvée
-  const stopVintage = async (vintageId) => {
+  const stopVintage = async (vintage) => {
     try {
-      await update("vintage", vintageId, {
-        status: VintageStatus.CREATED,
-        globalProgress: 0
+      await update("vintage", vintage.vintageId, {
+        productorId: vintage.productorId,
+        label: vintage.label,
+        quality: vintage.quality,
+        globalProgress: 0,
+        isComplete: false,
+        status: VintageStatus.CREATED
       });
 
-      const updatedVintages = vintages.map(vintage => {
-        if (vintage.vintageId === vintageId) {
-          const updatedSteps = vintage.steps.map(step => ({
+      const updatedVintages = vintages.map(elementVintage => {
+        if (elementVintage.vintageId === vintage.vintageId) {
+          const updatedSteps = elementVintage.steps.map(step => ({
             ...step,
             uiStatus: UIStatus.PENDING,
             progress: 0,
@@ -357,14 +391,15 @@ export default function Vintage() {
           }));
 
           return {
-            ...vintage,
+            ...elementVintage,
             uiStatus: UIStatus.PENDING,
             status: VintageStatus.CREATED,
             globalProgress: 0,
+            isComplete: false,
             steps: updatedSteps
           };
         }
-        return vintage;
+        return elementVintage;
       });
       
       setVintages(updatedVintages);
@@ -375,16 +410,106 @@ export default function Vintage() {
     }
   };
 
-  // FONCTION DE SUPPRESSION CORRIGÉE
-  const deleteVintage = async (vintageId) => {
-    console.log(`Tentative de suppression de la cuvée ID: ${vintageId}`);
+  // Fonction de modification
+  const handleEditVintage = async (vintage, updatedData) => {
+    setIsUpdating(true);
+    
     try {
-      await remove("vintage", vintageId);
-      console.log(`Cuvée ${vintageId} supprimée avec succès`);
+      // Validation du nom
+      const validationMessage = isValidVintageName(updatedData.label, vintage.vintageId);
+      if (validationMessage) {
+        showError(validationMessage);
+        return;
+      }
+
+      // Préparer les données complètes avec relations si elles sont modifiées
+      const dataToUpdate = {
+        productorId: vintage.productorId,
+        label: updatedData.label?.trim(),
+        quality: updatedData.quality,
+        globalProgress: vintage.globalProgress,
+        isComplete: vintage.isComplete,
+        status: vintage.status,
+        steps: [...vintage.steps],
+        ingredients: [...vintage.ingredients],
+      };
+
+      // Ajouter les étapes si elles sont modifiées
+      if (updatedData.steps && Array.isArray(updatedData.steps)) {
+        dataToUpdate.steps = updatedData.steps.map(step => ({
+          stepId: step.stepId || step.id,
+          progress: step.progress || 0
+        }));
+      }
+
+      // Ajouter les ingrédients si ils sont modifiés
+      if (updatedData.ingredients && Array.isArray(updatedData.ingredients)) {
+        dataToUpdate.ingredients = updatedData.ingredients.map(ingredient => ({
+          ingredientId: ingredient.ingredientId || ingredient.id,
+          quantityUsed: ingredient.quantityUsed || ingredient.quantity || 1
+        }));
+
+        // Vérification des stocks avant envoi
+        for (const ing of dataToUpdate.ingredients) {
+          if (!ing.quantityUsed || ing.quantityUsed <= 0) {
+            showError(`Quantité manquante ou invalide pour l'ingrédient ${ing.ingredientId}`);
+            return;
+          }
+          
+          const availableIngredient = ingredients.find(i => i.ingredientId === ing.ingredientId);
+          if (availableIngredient) {
+            // Calculer le stock disponible en tenant compte de la quantité actuellement utilisée
+            const currentlyUsed = vintage.ingredients?.find(vi => vi.ingredientId === ing.ingredientId)?.quantityUsed || 0;
+            const availableStock = Number(availableIngredient.quantity) + currentlyUsed;
+            
+            if (availableStock < ing.quantityUsed) {
+              showError(`Stock insuffisant pour ${availableIngredient.label}. Disponible: ${availableStock}, Demandé: ${ing.quantityUsed}`);
+              return;
+            }
+          }
+        }
+      }
+
+      await update("vintage", vintage.vintageId, dataToUpdate);
+      
+      // Recharger les données complètes depuis l'API
+      await Promise.all([
+        reloadIngredients(), // Les stocks ont pu changer
+        reloadVintages()     // Les relations ont pu changer
+      ]);
+      
+      setEditingVintage(null);
+      showSucces("Cuvée modifiée avec succès !");
+    } catch (error) {
+      console.error("Erreur lors de la modification :", error);
+      
+      let errorMessage = "Erreur lors de la modification de la cuvée";
+      if (error.message) {
+        if (error.message.includes("Stock insuffisant")) {
+          errorMessage = error.message;
+        } else if (error.message.includes("introuvable")) {
+          errorMessage = "Un des ingrédients ou étapes sélectionnés n'existe pas";
+        } else if (error.message.includes("Quantité utilisée manquante")) {
+          errorMessage = "Quantité manquante pour un ingrédient";
+        } else {
+          errorMessage = `Erreur: ${error.message}`;
+        }
+      }
+      
+      showError(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Fonction de suppression
+  const deleteVintage = async (vintage) => {
+    try {
+      await remove("vintage", vintage.vintageId);
       
       // Mise à jour immédiate de l'état local
       setVintages(prevVintages => 
-        prevVintages.filter(v => v.vintageId !== vintageId)
+        prevVintages.filter(v => v.vintageId !== vintage.vintageId)
       );
       
       setShowDeleteConfirm(null);
@@ -399,46 +524,7 @@ export default function Vintage() {
     }
   };
 
-  // FONCTION DE MODIFICATION CORRIGÉE
-  const handleEditVintage = async (vintageId, updatedData) => {
-    console.log(`Tentative de modification de la cuvée ID: ${vintageId}`, updatedData);
-    setIsUpdating(true);
-    
-    try {
-      // Validation du nom
-      const validationMessage = isValidVintageName(updatedData.label, vintageId);
-      if (validationMessage) {
-        showError(validationMessage);
-        return;
-      }
-
-      // Préparer les données pour l'API (ne garder que les champs modifiables)
-      const dataToUpdate = {
-        label: updatedData.label?.trim(),
-        quality: updatedData.quality
-      };
-
-      const updatedVintage = await update("vintage", vintageId, dataToUpdate);
-      console.log(`Cuvée ${vintageId} modifiée avec succès:`, updatedVintage);
-      
-      // Mise à jour immédiate de l'état local
-      setVintages(prevVintages =>
-        prevVintages.map(vintage =>
-          vintage.vintageId === vintageId
-            ? { ...vintage, ...dataToUpdate }
-            : vintage
-        )
-      );
-      
-      setEditingVintage(null);
-      showSucces("Cuvée modifiée avec succès !");
-    } catch (error) {
-      console.error("Erreur lors de la modification :", error);
-      showError(`Erreur lors de la modification : ${error.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  // ========== FONCTIONS UTILITAIRES ==========
 
   // Calculer le temps restant estimé
   const getEstimatedTimeRemaining = (vintage) => {
@@ -492,6 +578,8 @@ export default function Vintage() {
           estimatedEndTime: vintageStep.estimatedEndTime || null
         })) || []
       }));
+
+      console.log(JSON.stringify(vintagesWithStatus))
       setVintages(vintagesWithStatus);
     } catch (error) {
       console.error("Erreur lors du rechargement des cuvées :", error);
@@ -517,7 +605,6 @@ export default function Vintage() {
     setIsCreating(true);
   
     try {
-
       // Validation du nom
       const validationMessage = isValidVintageName(vintageData.label);
       if (validationMessage) {
@@ -557,8 +644,6 @@ export default function Vintage() {
         }))
       };
   
-      console.log("Données finales envoyées:", JSON.stringify(finalVintageData, null, 2));
-  
       // Vérification finale des quantités d'ingrédients
       for (const ing of finalVintageData.ingredients) {
         if (!ing.quantityUsed || ing.quantityUsed <= 0) {
@@ -575,7 +660,6 @@ export default function Vintage() {
   
       // Appel à l'API
       const createdVintage = await create("vintage", finalVintageData);
-      console.log("Cuvée créée:", createdVintage);
       
       // Rechargement des données
       await Promise.all([
@@ -700,7 +784,7 @@ export default function Vintage() {
                           {/* Boutons de contrôle de production */}
                           {vintage.uiStatus === UIStatus.PENDING && (
                             <button
-                              onClick={() => startVintage(vintage.vintageId)}
+                              onClick={() => startVintage(vintage)}
                               className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
                               title="Démarrer la production"
                             >
@@ -710,7 +794,7 @@ export default function Vintage() {
                           
                           {vintage.uiStatus === UIStatus.RUNNING && (
                             <button
-                              onClick={() => pauseVintage(vintage.vintageId)}
+                              onClick={() => pauseVintage(vintage)}
                               className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
                               title="Mettre en pause"
                             >
@@ -720,7 +804,7 @@ export default function Vintage() {
                           
                           {vintage.uiStatus === UIStatus.PAUSED && (
                             <button
-                              onClick={() => resumeVintage(vintage.vintageId)}
+                              onClick={() => resumeVintage(vintage)}
                               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                               title="Reprendre la production"
                             >
@@ -730,7 +814,7 @@ export default function Vintage() {
                           
                           {(vintage.uiStatus === UIStatus.RUNNING || vintage.uiStatus === UIStatus.PAUSED) && (
                             <button
-                              onClick={() => stopVintage(vintage.vintageId)}
+                              onClick={() => stopVintage(vintage)}
                               className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
                               title="Arrêter la production"
                             >
@@ -893,7 +977,7 @@ export default function Vintage() {
                 ingredients={ingredients}
                 steps={steps}
                 qualityOptions={qualityOptions}
-                onSubmit={(updatedData) => handleEditVintage(editingVintage.vintageId, updatedData)}
+                onSubmit={(updatedData) => handleEditVintage(editingVintage, updatedData)}
                 onCancel={() => setEditingVintage(null)}
                 loading={isUpdating}
               />
@@ -901,11 +985,11 @@ export default function Vintage() {
           </div>
         )}
 
-        {/* Modal de confirmation de suppression avec ConfirmDeleteModal */}
+        {/* Modal de confirmation de suppression */}
         <ConfirmDeleteModal
           isOpen={!!showDeleteConfirm}
           onClose={() => setShowDeleteConfirm(null)}
-          onConfirm={() => deleteVintage(showDeleteConfirm.vintageId)}
+          onConfirm={() => deleteVintage(showDeleteConfirm)}
           message={showDeleteConfirm ? 
             `Êtes-vous sûr de vouloir supprimer la cuvée "${showDeleteConfirm.label}" ? Cette action est irréversible et restaurera les quantités d'ingrédients utilisés.` 
             : ""

@@ -1,191 +1,226 @@
-import { useState } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Plus, Calendar, Wine, Package, Tag } from "lucide-react";
 import DataTable from "../../components/newDataTable";
+import { fetchAll, create, update, remove } from '../../utils/api';
+import { AuthContext } from '../../context/authContext';
+import { useToast } from '../../context/toastContext';
 
 export default function Bottling() {
+  const { user } = useContext(AuthContext);
+  const { showSucces, showError } = useToast();
+  
   const [editData, setEditData] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Liste des cuvées disponibles
-  const [cuvees, setCuvees] = useState([
-    { id: 1, nom: "Cuvée Prestige", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
-    { id: 2, nom: "Rosé d'Été", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
-    { id: 3, nom: "Blanc de Blancs", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
-    { id: 4, nom: "Cuvée Tradition", qualite: "Excellente", dateCreation: "12/05/2025", couleur: "red" },
-    { id: 5, nom: "Rosé Premium", qualite: "Bonne", dateCreation: "12/05/2025", couleur: "pink" },
-    { id: 6, nom: "Chardonnay", qualite: "Exceptionnelle", dateCreation: "12/05/2025", couleur: "yellow" },
-  ]);
+  // États pour les données API - initialisation avec des tableaux vides
+  const [vintages, setVintages] = useState([]);
+  const [products, setProducts] = useState([]); // Produits créés (mises en bouteille)
+  const [formats, setFormats] = useState([]); // Formats de bouteilles disponibles
 
   // Cuvée sélectionnée pour la mise en bouteille
-  const [selectedCuvee, setSelectedCuvee] = useState(null);
+  const [selectedVintage, setSelectedVintage] = useState(null);
   
   // Données du formulaire de mise en bouteille
   const [bottlingData, setBottlingData] = useState({
-    dateMiseEnBouteille: new Date().toISOString().split('T')[0],
-    nombreBouteilles: "",
-    typeBouteille: "standard",
-    typeEtiquette: "standard",
-    lotNumber: "",
-    notes: ""
+    label: "",
+    price: "",
+    type: "Rouge", // WineType enum: 'Blanc' | 'Rouge'
+    stock: "",
+    category: "Standard", // Collection enum: 'Prestige' | 'Standard' | 'Découverte'
+    formatId: "", // Référence au format de bouteille
+    image: "default.jpg" // Image par défaut
   });
 
-  // Historique des mises en bouteille
-  const [bottlingHistory, setBottlingHistory] = useState([
-    { 
-      id: 1, 
-      cuvee: "Cuvée Prestige", 
-      date: "10/05/2025", 
-      nombreBouteilles: 1200, 
-      typeBouteille: "premium", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-001",
-      notes: "Première mise en bouteille de l'année"
-    },
-    { 
-      id: 2, 
-      cuvee: "Rosé d'Été", 
-      date: "08/05/2025", 
-      nombreBouteilles: 800, 
-      typeBouteille: "standard", 
-      typeEtiquette: "standard",
-      lotNumber: "RE-2025-002",
-      notes: "Excellent millésime"
-    },
-    { 
-      id: 3, 
-      cuvee: "Blanc de Blancs", 
-      date: "05/05/2025", 
-      nombreBouteilles: 1500, 
-      typeBouteille: "magnum", 
-      typeEtiquette: "reserve",
-      lotNumber: "BB-2025-003",
-      notes: "Édition limitée"
-    },
-    { 
-      id: 4, 
-      cuvee: "Cuvée Prestige", 
-      date: "01/05/2025", 
-      nombreBouteilles: 600, 
-      typeBouteille: "jeroboam", 
-      typeEtiquette: "prestige",
-      lotNumber: "CP-2025-004",
-      notes: "Format spécial pour événements"
-    },
-    { 
-      id: 5, 
-      cuvee: "Rosé d'Été", 
-      date: "28/04/2025", 
-      nombreBouteilles: 900, 
-      typeBouteille: "standard", 
-      typeEtiquette: "custom",
-      lotNumber: "RE-2025-005",
-      notes: "Étiquette personnalisée client"
-    },
-    { 
-      id: 6, 
-      cuvee: "Chardonnay", 
-      date: "25/04/2025", 
-      nombreBouteilles: 1100, 
-      typeBouteille: "premium", 
-      typeEtiquette: "standard",
-      lotNumber: "CH-2025-006",
-      notes: "Assemblage final validé"
-    },
-    { 
-      id: 7, 
-      cuvee: "Blanc de Blancs", 
-      date: "20/04/2025", 
-      nombreBouteilles: 750, 
-      typeBouteille: "standard", 
-      typeEtiquette: "reserve",
-      lotNumber: "BB-2025-007",
-      notes: "Cuvée spéciale export"
-    },
-    { 
-      id: 8, 
-      cuvee: "Cuvée Tradition", 
-      date: "15/04/2025", 
-      nombreBouteilles: 2000, 
-      typeBouteille: "standard", 
-      typeEtiquette: "standard",
-      lotNumber: "CT-2025-008",
-      notes: "Production standard"
-    },
-  ]);
+  // Chargement des données au montage
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Charger toutes les données nécessaires
+        const vintagesData = await fetchAll("vintage");
+        const productsData = await fetchAll("vintage");
+        const formatsData = await fetchAll("vintage");
+        
+        // Mapper les vintages - seules les cuvées terminées peuvent être mises en bouteille
+        const availableVintages = (vintagesData || [])
+          .filter(vintage => (vintage && vintage.isComplete && vintage.globalProgress === 100) || true)
+          .map(vintage => ({
+            ...vintage,
+            displayName: `${vintage.label} - ${vintage.quality}`,
+            dateCreation: new Date(vintage.createdAt).toLocaleDateString("fr-FR")
+          }));
+        
+        setVintages(availableVintages);
+        
+        // Mapper les produits (mises en bouteille existantes)
+        const mappedProducts = (productsData || []).map(product => ({
+          id: product.productId,
+          productId: product.productId,
+          vintageId: product.vintageId,
+          cuveeName: product.vintage?.label || "Cuvée inconnue",
+          label: product.label,
+          price: parseFloat(product.price || 0),
+          type: product.type,
+          stock: product.stock || 0,
+          category: product.category,
+          formatLabel: product.format?.label || "Format inconnu",
+          formatQuantity: product.format?.quantity || 0,
+          formatUnit: product.format?.unit || "cL",
+          image: product.image,
+          createdAt: new Date(product.createdAt).toLocaleDateString("fr-FR"),
+          // Données calculées pour l'affichage
+          nombreBouteilles: product.stock || 0,
+          typeBouteille: product.format?.label || "standard",
+          date: new Date(product.createdAt).toLocaleDateString("fr-FR")
+        }));
+        
+        setProducts(mappedProducts);
+        setFormats(formatsData || []);
+        
+      } catch (error) {
+        console.error("Erreur lors du chargement des données :", error);
+        showError("Erreur lors du chargement des données");
+        
+        // Fallback - charger au moins les formats par défaut si possible
+        try {
+          const formatsData = await fetchAll("format");
+          setFormats(formatsData);
+        } catch (formatError) {
+          console.error("Impossible de charger les formats :", formatError);
+          // Formats par défaut si l'API échoue complètement
+          setFormats([
+            { formatId: 1, label: "Bouteille 75cL", quantity: 75, unit: "cL" },
+            { formatId: 2, label: "Magnum 1.5L", quantity: 150, unit: "cL" },
+            { formatId: 3, label: "Jéroboam 3L", quantity: 300, unit: "cL" }
+          ]);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Configuration des colonnes du tableau optimisée pour l'espace
+    fetchData();
+  }, []);
+
+  // Recharger les données après une modification
+  const reloadData = async () => {
+    try {
+      const [vintagesData, productsData] = await Promise.all([
+        fetchAll("vintage"),
+        fetchAll("product")
+      ]);
+      
+      const availableVintages = vintagesData
+        .filter(vintage => vintage.isComplete && vintage.globalProgress === 100)
+        .map(vintage => ({
+          ...vintage,
+          displayName: `${vintage.label} - ${vintage.quality}`,
+          dateCreation: new Date(vintage.createdAt).toLocaleDateString("fr-FR")
+        }));
+      
+      setVintages(availableVintages);
+      
+      const mappedProducts = productsData.map(product => ({
+        id: product.productId,
+        productId: product.productId,
+        vintageId: product.vintageId,
+        cuveeName: product.vintage?.label || "Cuvée inconnue",
+        label: product.label,
+        price: parseFloat(product.price),
+        type: product.type,
+        stock: product.stock,
+        category: product.category,
+        formatLabel: product.format?.label || "Format inconnu",
+        formatQuantity: product.format?.quantity || 0,
+        formatUnit: product.format?.unit || "cL",
+        image: product.image,
+        createdAt: new Date(product.createdAt).toLocaleDateString("fr-FR"),
+        nombreBouteilles: product.stock,
+        typeBouteille: product.format?.label || "standard",
+        date: new Date(product.createdAt).toLocaleDateString("fr-FR")
+      }));
+      
+      setProducts(mappedProducts);
+    } catch (error) {
+      console.error("Erreur lors du rechargement :", error);
+    }
+  };
+
+  // Configuration des colonnes du tableau
   const columns = [
     { 
-      key: "cuvee", 
+      key: "cuveeName", 
       label: "Cuvée", 
       render: (item) => (
         <div>
-          <div className="font-medium text-gray-900">{item.cuvee}</div>
-          <div className="text-xs text-gray-500">Lot: {item.lotNumber}</div>
+          <div className="font-medium text-gray-900">{item.cuveeName}</div>
+          <div className="text-xs text-gray-500">{item.label}</div>
         </div>
       )
     },
     { 
       key: "date", 
-      label: "Date", 
+      label: "Date de création", 
       render: (item) => (
         <div className="text-sm text-gray-600">{item.date}</div>
       )
     },
     { 
-      key: "nombreBouteilles", 
-      label: "Quantité", 
+      key: "stock", 
+      label: "Stock", 
       render: (item) => (
         <div className="text-center">
-          <div className="font-semibold text-lg text-blue-600">{item.nombreBouteilles.toLocaleString()}</div>
+          <div className="font-semibold text-lg text-blue-600">{item.stock.toLocaleString()}</div>
           <div className="text-xs text-gray-500">bouteilles</div>
         </div>
       )
     },
     { 
-      key: "typeBouteille", 
+      key: "formatLabel", 
       label: "Format", 
       render: (item) => {
-        const formats = {
-          'standard': { label: '75cl', color: 'bg-gray-100 text-gray-800' },
-          'magnum': { label: '1.5L', color: 'bg-blue-100 text-blue-800' },
-          'premium': { label: '75cl★', color: 'bg-purple-100 text-purple-800' },
-          'jeroboam': { label: '3L', color: 'bg-green-100 text-green-800' }
+        const getFormatColor = (format) => {
+          if (format.includes("Magnum")) return 'bg-blue-100 text-blue-800';
+          if (format.includes("Jéroboam")) return 'bg-green-100 text-green-800';
+          if (format.includes("Premium")) return 'bg-purple-100 text-purple-800';
+          return 'bg-gray-100 text-gray-800';
         };
-        const format = formats[item.typeBouteille] || formats.standard;
+        
         return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${format.color}`}>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getFormatColor(item.formatLabel)}`}>
             <Package className="w-3 h-3 mr-1" />
-            {format.label}
+            {item.formatLabel}
           </span>
         );
       }
     },
     { 
-      key: "typeEtiquette", 
-      label: "Étiquette", 
+      key: "category", 
+      label: "Catégorie", 
       render: (item) => {
-        const etiquettes = {
-          'standard': { label: 'Standard', color: 'bg-gray-100 text-gray-800' },
-          'prestige': { label: 'Prestige', color: 'bg-yellow-100 text-yellow-800' },
-          'reserve': { label: 'Réserve', color: 'bg-red-100 text-red-800' },
-          'custom': { label: 'Custom', color: 'bg-indigo-100 text-indigo-800' }
+        const categories = {
+          'Prestige': { label: 'Prestige', color: 'bg-yellow-100 text-yellow-800' },
+          'Standard': { label: 'Standard', color: 'bg-gray-100 text-gray-800' },
+          'Découverte': { label: 'Découverte', color: 'bg-green-100 text-green-800' }
         };
-        const etiquette = etiquettes[item.typeEtiquette] || etiquettes.standard;
+        const category = categories[item.category] || categories.Standard;
         return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${etiquette.color}`}>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${category.color}`}>
             <Tag className="w-3 h-3 mr-1" />
-            {etiquette.label}
+            {category.label}
           </span>
         );
       }
     },
     { 
-      key: "notes", 
-      label: "Notes", 
+      key: "price", 
+      label: "Prix", 
       render: (item) => (
-        <div className="text-xs text-gray-600 max-w-xs truncate" title={item.notes}>
-          {item.notes || "-"}
+        <div className="text-right">
+          <div className="font-semibold text-green-600">{item.price.toFixed(2)} €</div>
+          <div className="text-xs text-gray-500">{item.type}</div>
         </div>
       )
     },
@@ -198,14 +233,14 @@ export default function Bottling() {
           <button
             className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
             onClick={() => handleEdit(item)}
-            title="Modifier cette mise en bouteille"
+            title="Modifier ce produit"
           >
             Modifier
           </button>
           <button
             className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-red-500 transition-colors"
             onClick={() => handleDelete(item)}
-            title="Supprimer cette mise en bouteille"
+            title="Supprimer ce produit"
           >
             Supprimer
           </button>
@@ -215,15 +250,15 @@ export default function Bottling() {
   ];
 
   // Fonction pour sélectionner une cuvée
-  const selectCuvee = (cuvee) => {
-    setSelectedCuvee(cuvee);
+  const selectVintage = (vintage) => {
+    setSelectedVintage(vintage);
     
     if (!editData) {
-      // En mode création, générer un nouveau numéro de lot
-      const prefix = cuvee.nom.split(' ').map(word => word.charAt(0)).join('').toUpperCase();
+      // En mode création, pré-remplir certains champs
       setBottlingData({
         ...bottlingData,
-        lotNumber: `${prefix}-${new Date().getFullYear()}-${String(bottlingHistory.length + 1).padStart(3, '0')}`
+        label: `${vintage.label} - ${vintage.quality}`,
+        type: vintage.quality?.toLowerCase().includes('blanc') ? 'Blanc' : 'Rouge'
       });
     }
   };
@@ -239,16 +274,17 @@ export default function Bottling() {
 
   // Gérer la modification d'un élément
   const handleEdit = (item) => {
-    const cuveeItem = cuvees.find(c => c.nom === item.cuvee);
-    setSelectedCuvee(cuveeItem || null);
+    const vintage = vintages.find(v => v.vintageId === item.vintageId);
+    setSelectedVintage(vintage || null);
     
     setBottlingData({
-      dateMiseEnBouteille: item.date,
-      nombreBouteilles: item.nombreBouteilles,
-      typeBouteille: item.typeBouteille,
-      typeEtiquette: item.typeEtiquette,
-      lotNumber: item.lotNumber,
-      notes: item.notes || ""
+      label: item.label,
+      price: item.price.toString(),
+      type: item.type,
+      stock: item.stock.toString(),
+      category: item.category,
+      formatId: item.formatId || "",
+      image: item.image
     });
     
     setEditData(item);
@@ -256,83 +292,146 @@ export default function Bottling() {
   };
 
   // Gérer la suppression d'un élément
-  const handleDelete = (item) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la mise en bouteille du lot ${item.lotNumber} ?`)) {
-      setBottlingHistory(bottlingHistory.filter(bottling => bottling.id !== item.id));
+  const handleDelete = async (item) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le produit "${item.label}" ?`)) {
+      try {
+        setLoading(true);
+        
+        await remove("product", item.productId);
+        showSucces("Produit supprimé avec succès !");
+        
+        await reloadData();
+        
+      } catch (error) {
+        console.error("Erreur lors de la suppression :", error);
+        showError(`Erreur lors de la suppression : ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  // Soumission du formulaire
-  const handleSubmit = () => {
-    if (!selectedCuvee || !bottlingData.dateMiseEnBouteille || !bottlingData.nombreBouteilles) {
-      alert("Veuillez remplir tous les champs obligatoires");
-      return;
+  // Validation du formulaire
+  const validateForm = () => {
+    if (!selectedVintage) {
+      showError("Veuillez sélectionner une cuvée");
+      return false;
     }
     
-    if (editData) {
-      // Mode modification
-      const updatedHistory = bottlingHistory.map(item => {
-        if (item.id === editData.id) {
-          return {
-            ...item,
-            cuvee: selectedCuvee.nom,
-            date: bottlingData.dateMiseEnBouteille,
-            nombreBouteilles: parseInt(bottlingData.nombreBouteilles),
-            typeBouteille: bottlingData.typeBouteille,
-            typeEtiquette: bottlingData.typeEtiquette,
-            lotNumber: bottlingData.lotNumber,
-            notes: bottlingData.notes
-          };
-        }
-        return item;
-      });
+    if (!bottlingData.label.trim()) {
+      showError("Le nom du produit est obligatoire");
+      return false;
+    }
+    
+    if (!bottlingData.price || parseFloat(bottlingData.price) <= 0) {
+      showError("Le prix doit être un nombre positif");
+      return false;
+    }
+    
+    if (!bottlingData.stock || parseInt(bottlingData.stock) <= 0) {
+      showError("Le stock doit être un nombre positif");
+      return false;
+    }
+    
+    if (!bottlingData.formatId) {
+      showError("Veuillez sélectionner un format de bouteille");
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Soumission du formulaire
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    try {
+      setLoading(true);
       
-      setBottlingHistory(updatedHistory);
-      setEditData(null);
-    } else {
-      // Mode création
-      const newBottling = {
-        id: bottlingHistory.length > 0 ? Math.max(...bottlingHistory.map(item => item.id)) + 1 : 1,
-        cuvee: selectedCuvee.nom,
-        date: new Date().toLocaleDateString("fr-FR"),
-        nombreBouteilles: parseInt(bottlingData.nombreBouteilles),
-        typeBouteille: bottlingData.typeBouteille,
-        typeEtiquette: bottlingData.typeEtiquette,
-        lotNumber: bottlingData.lotNumber,
-        notes: bottlingData.notes
+      const productPayload = {
+        vintageId: selectedVintage.vintageId,
+        formatId: parseInt(bottlingData.formatId),
+        label: bottlingData.label.trim(),
+        price: parseFloat(bottlingData.price),
+        type: bottlingData.type,
+        stock: parseInt(bottlingData.stock),
+        category: bottlingData.category,
+        image: bottlingData.image || "default.jpg"
       };
       
-      setBottlingHistory([...bottlingHistory, newBottling]);
+      if (editData) {
+        // Mode modification
+        await update("product", editData.productId, productPayload);
+        showSucces("Produit modifié avec succès !");
+        setEditData(null);
+      } else {
+        // Mode création
+        await create("product", productPayload);
+        showSucces("Produit créé avec succès !");
+      }
+      
+      await reloadData();
+      resetForm();
+      setShowForm(false);
+      
+    } catch (error) {
+      console.error("Erreur lors de l'enregistrement :", error);
+      
+      let errorMessage = "Erreur lors de l'enregistrement du produit";
+      if (error.message) {
+        if (error.message.includes("formatId")) {
+          errorMessage = "Format de bouteille invalide";
+        } else if (error.message.includes("vintageId")) {
+          errorMessage = "Cuvée invalide ou introuvable";
+        } else {
+          errorMessage = `Erreur: ${error.message}`;
+        }
+      }
+      
+      showError(errorMessage);
+    } finally {
+      setLoading(false);
     }
-    
-    resetForm();
-    setShowForm(false);
   };
 
   // Réinitialisation du formulaire
   const resetForm = () => {
     setBottlingData({
-      dateMiseEnBouteille: new Date().toISOString().split('T')[0],
-      nombreBouteilles: "",
-      typeBouteille: "standard",
-      typeEtiquette: "standard",
-      lotNumber: "",
-      notes: ""
+      label: "",
+      price: "",
+      type: "Rouge",
+      stock: "",
+      category: "Standard",
+      formatId: "",
+      image: "default.jpg"
     });
     
-    setSelectedCuvee(null);
+    setSelectedVintage(null);
     setEditData(null);
   };
 
-  // Calcul des statistiques
-  const totalBottles = bottlingHistory.reduce((sum, item) => sum + item.nombreBouteilles, 0);
-  const uniqueCuvees = [...new Set(bottlingHistory.map(item => item.cuvee))].length;
-  const recentBottlings = bottlingHistory.filter(item => {
+  // Calcul des statistiques avec vérifications de sécurité
+  const totalBottles = (products || []).reduce((sum, item) => sum + (item.stock || 0), 0);
+  const totalValue = (products || []).reduce((sum, item) => sum + ((item.stock || 0) * (item.price || 0)), 0);
+  const uniqueVintages = [...new Set((products || []).map(item => item.vintageId))].length;
+  const recentProducts = (products || []).filter(item => {
+    if (!item.date) return false;
     const itemDate = new Date(item.date.split('/').reverse().join('-'));
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     return itemDate >= thirtyDaysAgo;
   }).length;
+
+  if (loading && vintages.length === 0 && products.length === 0) {
+    return (
+      <div className="w-full min-h-screen p-6 bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-800 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen p-6 bg-gray-50">
@@ -341,7 +440,7 @@ export default function Bottling() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Mise en Bouteille</h1>
-            <p className="text-gray-600 mt-1">Gestion des mises en bouteille et historique</p>
+            <p className="text-gray-600 mt-1">Création de produits finis à partir des cuvées terminées</p>
           </div>
           <button
             onClick={() => {
@@ -350,10 +449,11 @@ export default function Bottling() {
                 resetForm();
               }
             }}
-            className="inline-flex items-center px-4 py-2 bg-red-800 text-white text-sm font-medium rounded-lg hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 bg-red-800 text-white text-sm font-medium rounded-lg hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
           >
             <Plus className="w-4 h-4 mr-2" />
-            {showForm ? 'Annuler' : 'Nouvelle mise en bouteille'}
+            {showForm ? 'Annuler' : 'Nouveau produit'}
           </button>
         </div>
 
@@ -361,37 +461,49 @@ export default function Bottling() {
         {showForm && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {editData ? 'Modifier la mise en bouteille' : 'Nouvelle mise en bouteille'}
+              {editData ? 'Modifier le produit' : 'Nouveau produit'}
             </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Sélection de cuvée simplifiée */}
+              {/* Sélection de cuvée */}
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
-                  Sélection de la cuvée *
+                  Cuvée terminée * {vintages.length === 0 && "(Aucune cuvée terminée disponible)"}
                 </label>
-                <select
-                  value={selectedCuvee?.id || ''}
-                  onChange={(e) => {
-                    const cuvee = cuvees.find(c => c.id === parseInt(e.target.value));
-                    if (cuvee) selectCuvee(cuvee);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Choisir une cuvée...</option>
-                  {cuvees.map(cuvee => (
-                    <option key={cuvee.id} value={cuvee.id}>
-                      {cuvee.nom} - {cuvee.qualite}
-                    </option>
-                  ))}
-                </select>
-                
-                {selectedCuvee && (
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm text-gray-600">
-                      <strong>Qualité:</strong> {selectedCuvee.qualite}<br/>
-                      <strong>Créée le:</strong> {selectedCuvee.dateCreation}
+                {vintages.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedVintage?.vintageId || ''}
+                      onChange={(e) => {
+                        const vintage = vintages.find(v => v.vintageId === parseInt(e.target.value));
+                        if (vintage) selectVintage(vintage);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Choisir une cuvée...</option>
+                      {(vintages || []).map(vintage => (
+                        <option key={vintage.vintageId} value={vintage.vintageId}>
+                          {vintage.displayName}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {selectedVintage && (
+                      <div className="p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-600">
+                          <strong>Qualité:</strong> {selectedVintage.quality}<br/>
+                          <strong>Créée le:</strong> {selectedVintage.dateCreation}<br/>
+                          <strong>Progression:</strong> {selectedVintage.globalProgress}% (Terminée)
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-800">
+                      Aucune cuvée terminée n'est disponible pour la mise en bouteille. 
+                      Veuillez d'abord terminer une cuvée dans le module de production.
                     </p>
                   </div>
                 )}
@@ -402,13 +514,14 @@ export default function Bottling() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date de mise en bouteille *
+                      Nom du produit *
                     </label>
                     <input
-                      type="date"
-                      name="dateMiseEnBouteille"
-                      value={bottlingData.dateMiseEnBouteille}
+                      type="text"
+                      name="label"
+                      value={bottlingData.label}
                       onChange={handleInputChange}
+                      placeholder="Ex: Château Rouge Premium"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       required
                     />
@@ -416,14 +529,16 @@ export default function Bottling() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre de bouteilles *
+                      Prix unitaire (Ar) *
                     </label>
                     <input
                       type="number"
-                      name="nombreBouteilles"
-                      value={bottlingData.nombreBouteilles}
+                      name="price"
+                      value={bottlingData.price}
                       onChange={handleInputChange}
-                      placeholder="Ex: 1000"
+                      placeholder="Ex: 25.50"
+                      min="0"
+                      step="0.01"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                       required
                     />
@@ -433,81 +548,89 @@ export default function Bottling() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type de bouteille
+                      Type de vin
                     </label>
                     <select
-                      name="typeBouteille"
-                      value={bottlingData.typeBouteille}
+                      name="type"
+                      value={bottlingData.type}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     >
-                      <option value="standard">Standard (75cl)</option>
-                      <option value="magnum">Magnum (1.5L)</option>
-                      <option value="premium">Premium (75cl)</option>
-                      <option value="jeroboam">Jéroboam (3L)</option>
+                      <option value="Rouge">Rouge</option>
+                      <option value="Blanc">Blanc</option>
                     </select>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type d'étiquette
+                      Stock initial *
                     </label>
-                    <select
-                      name="typeEtiquette"
-                      value={bottlingData.typeEtiquette}
+                    <input
+                      type="number"
+                      name="stock"
+                      value={bottlingData.stock}
                       onChange={handleInputChange}
+                      placeholder="Ex: 1000"
+                      min="1"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="prestige">Prestige</option>
-                      <option value="reserve">Réserve</option>
-                      <option value="custom">Personnalisée</option>
-                    </select>
+                      required
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Numéro de lot
-                  </label>
-                  <input
-                    type="text"
-                    name="lotNumber"
-                    value={bottlingData.lotNumber}
-                    onChange={handleInputChange}
-                    placeholder="Généré automatiquement"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    name="notes"
-                    value={bottlingData.notes}
-                    onChange={handleInputChange}
-                    placeholder="Commentaires sur cette mise en bouteille..."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Format de bouteille *
+                    </label>
+                    <select
+                      name="formatId"
+                      value={bottlingData.formatId}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Choisir un format...</option>
+                      {(formats || []).map(format => (
+                        <option key={format.formatId} value={format.formatId}>
+                          {format.label} ({format.quantity}{format.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Catégorie
+                    </label>
+                    <select
+                      name="category"
+                      value={bottlingData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    >
+                      <option value="Standard">Standard</option>
+                      <option value="Prestige">Prestige</option>
+                      <option value="Découverte">Découverte</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={handleSubmit}
-                    disabled={!selectedCuvee || !bottlingData.nombreBouteilles}
+                    disabled={!selectedVintage || !bottlingData.label || !bottlingData.price || !bottlingData.stock || !bottlingData.formatId || loading}
                     className="flex-1 px-4 py-2 bg-red-800 text-white text-sm font-medium rounded-md hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {editData ? 'Mettre à jour' : 'Enregistrer la mise en bouteille'}
+                    {loading ? 'Enregistrement...' : (editData ? 'Mettre à jour' : 'Créer le produit')}
                   </button>
                   <button
                     onClick={() => {
                       resetForm();
                       setShowForm(false);
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                    disabled={loading}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
                   >
                     Annuler
                   </button>
@@ -522,7 +645,7 @@ export default function Bottling() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total bouteilles</p>
+                <p className="text-sm font-medium text-gray-600">Stock total</p>
                 <p className="text-2xl font-bold text-red-600">{totalBottles.toLocaleString()}</p>
               </div>
               <Wine className="h-8 w-8 text-red-600" />
@@ -532,20 +655,20 @@ export default function Bottling() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Mises en bouteille</p>
-                <p className="text-2xl font-bold text-blue-600">{bottlingHistory.length}</p>
+                <p className="text-sm font-medium text-gray-600">Valeur stock</p>
+                <p className="text-2xl font-bold text-green-600">{totalValue.toFixed(0)}€</p>
               </div>
-              <Package className="h-8 w-8 text-blue-600" />
+              <Package className="h-8 w-8 text-green-600" />
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Cuvées différentes</p>
-                <p className="text-2xl font-bold text-green-600">{uniqueCuvees}</p>
+                <p className="text-sm font-medium text-gray-600">Cuvées mises en bouteille</p>
+                <p className="text-2xl font-bold text-blue-600">{uniqueVintages}</p>
               </div>
-              <Tag className="h-8 w-8 text-green-600" />
+              <Tag className="h-8 w-8 text-blue-600" />
             </div>
           </div>
 
@@ -553,20 +676,20 @@ export default function Bottling() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Ce mois-ci</p>
-                <p className="text-2xl font-bold text-purple-600">{recentBottlings}</p>
+                <p className="text-2xl font-bold text-purple-600">{recentProducts}</p>
               </div>
               <Calendar className="h-8 w-8 text-purple-600" />
             </div>
           </div>
         </div>
 
-        {/* Tableau principal - pleine largeur */}
+        {/* Tableau principal */}
         <div className="w-full">
           <DataTable 
-            data={bottlingHistory} 
+            data={products} 
             columns={columns}
-            title="Historique des mises en bouteille"
-            subtitle={`${bottlingHistory.length} enregistrements | ${totalBottles.toLocaleString()} bouteilles au total`}
+            title="Produits en stock"
+            subtitle={`${products.length} produits | ${totalBottles.toLocaleString()} bouteilles | ${totalValue.toFixed(2)}Ar de valeur`}
           />
         </div>
       </div>
