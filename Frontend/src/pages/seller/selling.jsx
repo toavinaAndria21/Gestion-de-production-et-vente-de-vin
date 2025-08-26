@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
-import { Search, Minus, Plus } from "lucide-react";
+import { useContext, useEffect, useState } from "react"
+import {  Minus, Plus } from "lucide-react";
 import WineCardList from "../../components/wineCard";
 import SearchInput from "../../components/searchInput";
 import { API_URL } from "../../config/api";
 import { useToast } from "../../context/toastContext";
+import { AuthContext } from "../../context/authContext";
 import '../../css/scrollBar.css';
 
 export default function Selling() {
@@ -16,12 +17,12 @@ export default function Selling() {
     const [wineList, setWineList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const { showSucces, showError, showAlert } = useToast();
+    const { user } = useContext(AuthContext);
 
     const getAllWines = async () => {
       try {
         const response = await fetch(`${API_URL}/product`);
         const data = await response.json();
-        console.log(data)
         const wines = data.map(item => {
           return {
             id: item.productId,
@@ -31,7 +32,7 @@ export default function Selling() {
             volume: `${item.format.quantity}${item.format.unit}`,
             prix: parseInt(item.price),
             stock: item.stock,
-            image: item.image || ""
+            image: API_URL + '/' + item.image || ""
           };
         });
         setWineList(wines); 
@@ -130,7 +131,7 @@ export default function Selling() {
 
     const savePayment = async () => {
       try {
-        const sellerId = "313011044286";
+        const sellerId = user.personnelId;
         const products = panier.map(item => ({
           productId: item.id,
           quantity: item.stock,
@@ -140,7 +141,6 @@ export default function Selling() {
           sellerId,
           products,
         };
-    
         const response = await fetch(`${API_URL}/product/sale`, {
           method: "POST",
           headers: {
@@ -184,8 +184,7 @@ export default function Selling() {
                 <p>Heure: {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">N° Commande: CMD-{Math.floor(Math.random() * 1000000)}</p>
-                <p>Vendeur: Thomas Dubois</p>
+                <p className="font-medium">Vendeur: { user?.name + ' ' + user?.lastName }</p>
               </div>
             </div>
 
@@ -269,13 +268,13 @@ export default function Selling() {
         <div className="md:w-80 lg:w-96 xl:w-[410px] h-[90%]  bg-white rounded-lg shadow p-2 flex flex-col">
           <h2 className="text-lg font-bold mb-4 text-gray-800">Panier du Client</h2>
           
-          {/* Cart Items */}
+          {/* Détails du panier */}
           <div className="flex-1 overflow-y-auto mb-4">
             {panier.length > 0 ? (
               panier.map((item) => (
                 <div key={item.id} className="flex mb-4 pb-4 border-b border-gray-100">
-                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-2xl mr-3">
-                    {item.image}
+                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-2xl mr-3"
+                  style={{ backgroundImage: `url(${item.image})`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover' }}>
                   </div>
                   <div className="flex-1">
                     <div className="font-bold">{item.nom}</div>
@@ -305,7 +304,7 @@ export default function Selling() {
             )}
           </div>
           
-          {/* Cart Summary */}
+          {/* Panier total */}
           {panier.length > 0 && (
             <div className="pt-2 border-t border-gray-200">
               <div className="flex justify-between text-lg font-bold mb-2">

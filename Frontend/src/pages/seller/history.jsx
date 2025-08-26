@@ -68,7 +68,7 @@ export default function SalesHistory() {
           products: productsArray.join(', '),
           quantity: totalQuantity,
           amount: ticket.payment.amount,
-          items: productsArray, // Pour recherche produit
+          items: productsArray,
           cashierName: ticket.sellerId.toString(), // Pour recherche vendeur
         };
       });

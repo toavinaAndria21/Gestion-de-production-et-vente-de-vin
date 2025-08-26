@@ -22,12 +22,12 @@ export class ProductService {
         try {
             const newProduct = await prisma.product.create({
                 data: {
-                    vintageId: product.vintageId,
-                    formatId: product.formatId,
+                    vintageId: Number(product.vintageId),
+                    formatId: Number(product.formatId),
                     label: product.label,
-                    price: product.price,
+                    price: Number(product.price),
                     type: product.type,
-                    stock: product.stock,
+                    stock: Number(product.stock),
                     category: product.category,
                     image: product.image
                     // type: product
@@ -127,7 +127,6 @@ export class ProductService {
             const ticket = await tx.ticket.create({
                 data:{
                     sellerId,
-                    clientId:1,
                     state:'Payé'
                 }
             });

@@ -8,5 +8,6 @@ vintageRouter.get("/search/:label", VintageController.searchVintage);
 vintageRouter.post("/", VintageController.createVintage);
 vintageRouter.put("/:id", VintageController.updateVintage);
 vintageRouter.delete("/:id", VintageController.deleteVintage);
+vintageRouter.get("/production/history", VintageController.getProductionHistory)
 
 export default vintageRouter;

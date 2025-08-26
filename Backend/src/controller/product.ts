@@ -26,10 +26,16 @@ export class ProductController {
     }
     static async createProduct(req:Request, res:Response) {
         try {
-            const { vintageId, formatId, label, price, stock, type, image, category } = req.body;
+            const { vintageId, formatId, label, price, stock, type, category } = req.body;
             if (!vintageId || !formatId || !label || !price) {
                 res.status(400).json({ message: "Champs requis manquants" });
             }
+
+            let image = "";
+            if( req.file ) {
+                image = req.file.path; //stocker le chemin locale du fichier
+            }
+            console.log('path', image)
             const newProduct = await ProductService.create({vintageId, formatId, label, price, stock, type, image, category});
             res.status(201).json({message:"Produit crée avec succes", data:newProduct})
         } catch (error) {
@@ -91,7 +97,8 @@ export class ProductController {
             res.status(201).json({ message: "Vente enregistrée avec succès", ticket });
           
         } catch (error) {
-            res.status(500).json({message: "Erreur lors de l'opération"})
+            res.status(500).json({message: "Erreur lors de l'opération"});
+            console.error(error)
         }
     }
 }

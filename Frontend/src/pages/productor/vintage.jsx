@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import SearchInput from '../../components/searchInput';
 import CreateVintage from '../../components/createVintage';
 import EditVintage from '../../components/editVintage';
+import ConfirmDeleteModal from '../../components/confirmDeleteModal';
 import { fetchAll, create, update, remove } from '../../utils/api';
 import { AuthContext } from '../../context/authContext';
 import { useToast } from '../../context/toastContext';
@@ -109,6 +110,15 @@ export default function Vintage() {
     return UIStatus.PENDING;
   };
 
+  // Vérifications pour les actions
+  const canEditVintage = (vintage) => {
+    return vintage.uiStatus === UIStatus.PENDING || vintage.uiStatus === UIStatus.COMPLETED;
+  };
+
+  const canDeleteVintage = (vintage) => {
+    return vintage.uiStatus !== UIStatus.RUNNING;
+  };
+
   // Système de progression en temps réel
   useEffect(() => {
     const interval = setInterval(() => {
@@ -183,14 +193,12 @@ export default function Vintage() {
   // Fonction pour sauvegarder la progression en base
   const updateVintageProgress = async (vintageId, globalProgress, isComplete, steps) => {
     try {
-      // Mettre à jour la progression globale de la cuvée
       await update("vintage", vintageId, {
         globalProgress,
         isComplete,
         status: isComplete ? VintageStatus.CREATED : VintageStatus.LAUNCHED
       });
 
-      // Mettre à jour la progression de chaque étape
       for (const step of steps) {
         if (step.vintageStepId) {
           await update("vintageStep", step.vintageStepId, {
@@ -246,7 +254,8 @@ export default function Vintage() {
       setVintages(updatedVintages);
       showSucces("Production démarrée !");
     } catch (error) {
-      showError("Erreur lors du démarrage");
+      console.error("Erreur lors du démarrage:", error);
+      showError(`Erreur lors du démarrage: ${error.message}`);
     }
   };
 
@@ -283,7 +292,8 @@ export default function Vintage() {
       setVintages(updatedVintages);
       showSucces("Production mise en pause");
     } catch (error) {
-      showError("Erreur lors de la mise en pause");
+      console.error("Erreur lors de la mise en pause:", error);
+      showError(`Erreur lors de la mise en pause: ${error.message}`);
     }
   };
 
@@ -322,7 +332,8 @@ export default function Vintage() {
       setVintages(updatedVintages);
       showSucces("Production reprise !");
     } catch (error) {
-      showError("Erreur lors de la reprise");
+      console.error("Erreur lors de la reprise:", error);
+      showError(`Erreur lors de la reprise: ${error.message}`);
     }
   };
 
@@ -359,41 +370,71 @@ export default function Vintage() {
       setVintages(updatedVintages);
       showSucces("Production arrêtée");
     } catch (error) {
-      showError("Erreur lors de l'arrêt");
+      console.error("Erreur lors de l'arrêt:", error);
+      showError(`Erreur lors de l'arrêt: ${error.message}`);
     }
   };
 
-  // Supprimer une cuvée
+  // FONCTION DE SUPPRESSION CORRIGÉE
   const deleteVintage = async (vintageId) => {
+    console.log(`Tentative de suppression de la cuvée ID: ${vintageId}`);
     try {
       await remove("vintage", vintageId);
-      setVintages(vintages.filter(v => v.vintageId !== vintageId));
+      console.log(`Cuvée ${vintageId} supprimée avec succès`);
+      
+      // Mise à jour immédiate de l'état local
+      setVintages(prevVintages => 
+        prevVintages.filter(v => v.vintageId !== vintageId)
+      );
+      
       setShowDeleteConfirm(null);
       showSucces("Cuvée supprimée avec succès !");
+      
+      // Recharger les ingrédients car les quantités ont été restaurées
+      await reloadIngredients();
     } catch (error) {
       console.error("Erreur lors de la suppression :", error);
-      showError("Erreur lors de la suppression de la cuvée");
+      setShowDeleteConfirm(null);
+      showError(`Erreur lors de la suppression : ${error.message}`);
     }
   };
 
-  // Modifier une cuvée
+  // FONCTION DE MODIFICATION CORRIGÉE
   const handleEditVintage = async (vintageId, updatedData) => {
+    console.log(`Tentative de modification de la cuvée ID: ${vintageId}`, updatedData);
     setIsUpdating(true);
+    
     try {
+      // Validation du nom
       const validationMessage = isValidVintageName(updatedData.label, vintageId);
       if (validationMessage) {
         showError(validationMessage);
         return;
       }
 
-      await update("vintage", vintageId, updatedData);
-      await reloadVintages();
+      // Préparer les données pour l'API (ne garder que les champs modifiables)
+      const dataToUpdate = {
+        label: updatedData.label?.trim(),
+        quality: updatedData.quality
+      };
+
+      const updatedVintage = await update("vintage", vintageId, dataToUpdate);
+      console.log(`Cuvée ${vintageId} modifiée avec succès:`, updatedVintage);
+      
+      // Mise à jour immédiate de l'état local
+      setVintages(prevVintages =>
+        prevVintages.map(vintage =>
+          vintage.vintageId === vintageId
+            ? { ...vintage, ...dataToUpdate }
+            : vintage
+        )
+      );
       
       setEditingVintage(null);
       showSucces("Cuvée modifiée avec succès !");
     } catch (error) {
       console.error("Erreur lors de la modification :", error);
-      showError("Erreur lors de la modification de la cuvée");
+      showError(`Erreur lors de la modification : ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -458,6 +499,8 @@ export default function Vintage() {
   };
 
   const isValidVintageName = (name, excludeId = null) => {
+    if (!name) return "Le nom ne peut pas être vide.";
+    
     const trimmed = name.trim();
     const nameRegex = /^[a-zA-ZÀ-ÿ0-9\- ]{3,50}$/;
   
@@ -472,40 +515,102 @@ export default function Vintage() {
   
   const handleCreateVintage = async (vintageData) => {
     setIsCreating(true);
-
+  
     try {
+
+      // Validation du nom
       const validationMessage = isValidVintageName(vintageData.label);
       if (validationMessage) {
         showError(validationMessage);
-        setIsCreating(false);
         return;
       }
-
+  
+      // Vérification des données requises
+      if (!vintageData.steps || vintageData.steps.length === 0) {
+        showError("Veuillez sélectionner au moins une étape");
+        return;
+      }
+  
+      if (!vintageData.ingredients || vintageData.ingredients.length === 0) {
+        showError("Veuillez sélectionner au moins un ingrédient");
+        return;
+      }
+  
+      // Formatage des données pour correspondre à ce qu'attend le service
       const finalVintageData = {
-        ...vintageData,
-        productorId: user?.personnelId || "234234234234"
+        productorId: user.personnelId,
+        label: vintageData.label.trim(),
+        quality: vintageData.quality,
+        globalProgress: 0,
+        status: VintageStatus.CREATED,
+        isComplete: false,
+        
+        // Formatage des étapes
+        steps: vintageData.steps.map(step => ({
+          stepId: step.stepId || step.id
+        })),
+        
+        // Formatage des ingrédients
+        ingredients: vintageData.ingredients.map(ingredient => ({
+          ingredientId: ingredient.ingredientId || ingredient.id,
+          quantityUsed: ingredient.quantityUsed || ingredient.quantity || 1
+        }))
       };
-      
+  
+      console.log("Données finales envoyées:", JSON.stringify(finalVintageData, null, 2));
+  
+      // Vérification finale des quantités d'ingrédients
+      for (const ing of finalVintageData.ingredients) {
+        if (!ing.quantityUsed || ing.quantityUsed <= 0) {
+          showError(`Quantité manquante ou invalide pour l'ingrédient ${ing.ingredientId}`);
+          return;
+        }
+        
+        const availableIngredient = ingredients.find(i => i.ingredientId === ing.ingredientId);
+        if (availableIngredient && Number(availableIngredient.quantity) < ing.quantityUsed) {
+          showError(`Stock insuffisant pour ${availableIngredient.label}. Disponible: ${availableIngredient.quantity}, Demandé: ${ing.quantityUsed}`);
+          return;
+        }
+      }
+  
+      // Appel à l'API
       const createdVintage = await create("vintage", finalVintageData);
+      console.log("Cuvée créée:", createdVintage);
       
+      // Rechargement des données
       await Promise.all([
         reloadIngredients(),
         reloadVintages()
       ]);
-
+  
+      // Reset du formulaire
       setNewVintage({
         label: '',
         quality: 'Standard',
         selectedIngredients: [],
         selectedSteps: []
       });
-
+  
       setActiveTab('vintages');
       showSucces("Cuvée créée avec succès !");
-
+  
     } catch (error) {
       console.error("Erreur lors de la création de la cuvée :", error);
-      showError("Erreur lors de la création de la cuvée");
+      
+      let errorMessage = "Erreur lors de la création de la cuvée";
+      if (error.message) {
+        if (error.message.includes("Stock insuffisant")) {
+          errorMessage = error.message;
+        } else if (error.message.includes("introuvable")) {
+          errorMessage = "Un des ingrédients ou étapes sélectionnés n'existe pas";
+        } else if (error.message.includes("Quantité utilisée manquante")) {
+          errorMessage = "Quantité manquante pour un ingrédient";
+        } else {
+          errorMessage = `Erreur: ${error.message}`;
+        }
+      }
+      
+      showError(errorMessage);
     } finally {
       setIsCreating(false);
     }
@@ -513,38 +618,6 @@ export default function Vintage() {
 
   const filteredVintages = vintages.filter(v =>
     v.label.toLowerCase().includes(searchVintageTerm.toLowerCase())
-  );
-
-  // Modal de confirmation de suppression
-  const DeleteConfirmModal = ({ vintage, onConfirm, onCancel }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-mx">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Supprimer la cuvée</h3>
-        </div>
-        <p className="text-gray-600 mb-6">
-          Êtes-vous sûr de vouloir supprimer la cuvée "<strong>{vintage.label}</strong>" ? 
-          Cette action est irréversible.
-        </p>
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-          >
-            Supprimer
-          </button>
-        </div>
-      </div>
-    </div>
   );
 
   return (
@@ -665,19 +738,41 @@ export default function Vintage() {
                             </button>
                           )}
 
-                          {/* Boutons d'édition et suppression */}
+                          {/* Boutons d'édition et suppression avec vérifications */}
                           <button
-                            onClick={() => setEditingVintage(vintage)}
-                            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                            title="Modifier la cuvée"
+                            onClick={() => {
+                              if (!canEditVintage(vintage)) {
+                                showError("Impossible de modifier une cuvée en cours de production.");
+                                return;
+                              }
+                              setEditingVintage(vintage);
+                            }}
+                            className={`p-2 rounded transition ${
+                              canEditVintage(vintage) 
+                                ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                            title={canEditVintage(vintage) ? "Modifier la cuvée" : "Modification impossible (production en cours)"}
+                            disabled={!canEditVintage(vintage)}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
 
                           <button
-                            onClick={() => setShowDeleteConfirm(vintage)}
-                            className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-                            title="Supprimer la cuvée"
+                            onClick={() => {
+                              if (!canDeleteVintage(vintage)) {
+                                showError("Impossible de supprimer une cuvée en cours de production. Veuillez d'abord l'arrêter.");
+                                return;
+                              }
+                              setShowDeleteConfirm(vintage);
+                            }}
+                            className={`p-2 rounded transition ${
+                              canDeleteVintage(vintage)
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                            title={canDeleteVintage(vintage) ? "Supprimer la cuvée" : "Suppression impossible (production en cours)"}
+                            disabled={!canDeleteVintage(vintage)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -806,14 +901,16 @@ export default function Vintage() {
           </div>
         )}
 
-        {/* Modal de confirmation de suppression */}
-        {showDeleteConfirm && (
-          <DeleteConfirmModal
-            vintage={showDeleteConfirm}
-            onConfirm={() => deleteVintage(showDeleteConfirm.vintageId)}
-            onCancel={() => setShowDeleteConfirm(null)}
-          />
-        )}
+        {/* Modal de confirmation de suppression avec ConfirmDeleteModal */}
+        <ConfirmDeleteModal
+          isOpen={!!showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(null)}
+          onConfirm={() => deleteVintage(showDeleteConfirm.vintageId)}
+          message={showDeleteConfirm ? 
+            `Êtes-vous sûr de vouloir supprimer la cuvée "${showDeleteConfirm.label}" ? Cette action est irréversible et restaurera les quantités d'ingrédients utilisés.` 
+            : ""
+          }
+        />
       </div>
     </div>
   );

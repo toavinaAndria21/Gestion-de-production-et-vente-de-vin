@@ -63,4 +63,14 @@ export class VintageController {
             res.status(500).json({message:"Erreur lors de la recherche"});
         }
     }
+
+    static async getProductionHistory(req: Request, res: Response) {
+        try {
+            const data = await VintageService.getVintagesWithProducts();
+            res.status(200).json(data);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Impossible de récupérer l'historique" });
+        }
+    };
 }
